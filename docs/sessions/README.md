@@ -10,6 +10,7 @@ YYYY-MM-DD_HHmm-<short-slug>.md
 
 ## 最近记录（新到旧）
 
+- [`2026-10-01_2347-save-layer-pick-menu.md`](2026-10-01_2347-save-layer-pick-menu.md) — 保存机制排查：先写工程再生成缩略图，关窗口不丢最后的改动；关联 .chaos 自动写入；主页显示工程库位置；画布点选优先已选图层 + 右键「选择图层」；修复子菜单扫过后全部高亮。
 - [`2026-10-01_1433-product-editor-upgrade.md`](2026-10-01_1433-product-editor-upgrade.md) — 产品化升级：工程库与 .chaos 文件、工程主页、新建预设、画布大小对话框、工具栏与变形、40 个效果与一键风格、生成器与贴纸、字体库、Y3K 调研与实现；删除配方与参考图；本地 Git 基线（未推送）。
 - [`2026-10-01_1352-git-private-github.md`](2026-10-01_1352-git-private-github.md) — 初始化 Git 版本管理，建立 LioraRndr/ChaosCollege 私有仓库并推送 main。
 - [`2026-09-30_2240-datamosh-intent-review.md`](2026-09-30_2240-datamosh-intent-review.md) — 帧感染改为单图卡帧反馈，用户认可后完成小范围性能优化；19 组逐像素一致，两组基准约快 11%/13%，增加缓存与临时画布预算，保存证据。

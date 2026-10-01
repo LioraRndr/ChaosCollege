@@ -289,7 +289,12 @@
     }
   }
 
-  async function saveProject({ force = false } = {}) {
+  /* The document is written first, with the previous thumbnail, so the IndexedDB
+     transaction starts synchronously. That matters when the window is closing:
+     pagehide gives no time to render a thumbnail before the write. */
+  const thumbs = new Map();
+
+  async function saveProject({ force = false, thumbnail = true } = {}) {
     if (!state.doc) return;
     if (state.saving) {
       state.saveAgain = true;
@@ -299,10 +304,10 @@
     state.saving = true;
     setSaveStatus('saving');
     const doc = state.doc;
+    let saved = false;
     try {
       state.dirty = false;
       doc.updatedAt = Date.now();
-      const thumb = await makeThumbnail();
       await CC.storage.putProject({
         id: doc.id,
         name: doc.name,
@@ -311,9 +316,10 @@
         createdAt: doc.createdAt,
         updatedAt: doc.updatedAt,
         doc: U.deepCopy(doc),
-        thumb,
+        thumb: thumbs.has(doc.id) ? thumbs.get(doc.id) : undefined,
         fileName: state.fileHandle?.name || '',
       });
+      saved = true;
       setSaveStatus(state.dirty ? 'unsaved' : 'saved');
     } catch (error) {
       console.error(error);
@@ -327,10 +333,22 @@
         if (state.dirty) scheduleSave();
       }
     }
+    if (saved) {
+      App.autoWriteLinkedFile?.();
+      if (thumbnail && document.visibilityState !== 'hidden') refreshThumbnail(doc);
+    }
+  }
+
+  async function refreshThumbnail(doc) {
+    const thumb = await makeThumbnail();
+    if (!thumb || state.doc !== doc) return;
+    thumbs.set(doc.id, thumb);
+    await CC.storage.putThumb(doc.id, thumb).catch(() => {});
   }
 
   function flushSave() {
     scheduleSave.flush();
+    if (state.dirty && !state.saving) saveProject({ thumbnail: false }).catch(() => {});
   }
 
   async function loadDocument(doc, assetRecords, { fileHandle = null } = {}) {
@@ -383,6 +401,7 @@
     await loadDocument(doc, []);
     state.dirty = true;
     await saveProject({ force: true });
+    CC.storage.requestPersist().catch(() => {});
     ui.toast(`已创建「${doc.name}」· ${doc.width} × ${doc.height}`);
     return doc;
   }
@@ -607,14 +626,28 @@
     };
   }
 
-  function hitTest(point, { includeLocked = false } = {}) {
+  /* All layers under the point, topmost first. */
+  function hitTestAll(point, { includeLocked = false } = {}) {
     const layers = state.doc?.layers || [];
+    const hits = [];
     for (let i = layers.length - 1; i >= 0; i -= 1) {
       const layer = layers[i];
       if (!layer.visible || (layer.locked && !includeLocked)) continue;
-      if (CC.warp.pointInPolygon(layerPolygon(layer), point.x, point.y)) return layer;
+      if (CC.warp.pointInPolygon(layerPolygon(layer), point.x, point.y)) hits.push(layer);
     }
-    return null;
+    return hits;
+  }
+
+  /* preferSelected: a selected layer under the point wins over the layers
+     stacked above it, so a lower layer picked in the layers panel stays the
+     one being edited on the canvas. */
+  function hitTest(point, { includeLocked = false, preferSelected = false } = {}) {
+    const hits = hitTestAll(point, { includeLocked });
+    if (preferSelected) {
+      const selected = hits.find((layer) => state.selection.includes(layer.id));
+      if (selected) return selected;
+    }
+    return hits[0] || null;
   }
 
   function layerById(id) {
@@ -1069,6 +1102,7 @@
     layerAABB,
     unionAABB,
     hitTest,
+    hitTestAll,
     layerById,
     selectedLayers,
     primaryLayer,

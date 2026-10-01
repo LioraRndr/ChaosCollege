@@ -237,7 +237,7 @@
         pickColor(screen);
         return;
       case 'text': {
-        const hit = App.hitTest(point);
+        const hit = App.hitTest(point, { preferSelected: true });
         if (hit?.type === 'text') {
           App.select(hit.id);
           startTextEdit(hit, { selectAll: false });
@@ -281,7 +281,10 @@
       return;
     }
 
-    const hit = App.hitTest(point);
+    /* shift / ctrl toggles the topmost layer; a plain click keeps editing the
+       current selection when it is under the pointer, even if covered */
+    const toggling = event.shiftKey || event.ctrlKey || event.metaKey;
+    const hit = App.hitTest(point, { preferSelected: !toggling });
     if (!hit) {
       if (!event.shiftKey) state.selection = [];
       state.pointer = { ...base, mode: 'marquee', current: screen, baseSelection: event.shiftKey ? [...state.selection] : [] };
@@ -289,7 +292,7 @@
       App.renderAll();
       return;
     }
-    if (event.shiftKey || event.ctrlKey || event.metaKey) {
+    if (toggling) {
       App.select(hit.id, { toggle: true });
       return;
     }
@@ -336,7 +339,7 @@
     App.renderCursorPos?.(point);
     const pointer = state.pointer;
     if (!pointer || pointer.id !== event.pointerId) {
-      const hover = ['select', 'transform', 'text'].includes(state.tool) ? App.hitTest(point) : null;
+      const hover = ['select', 'transform', 'text'].includes(state.tool) ? App.hitTest(point, { preferSelected: true }) : null;
       if ((hover?.id || null) !== (state.hover?.id || null)) {
         state.hover = hover;
         App.requestRender('overlay');
@@ -1242,7 +1245,7 @@
     viewport.addEventListener('dblclick', (event) => {
       if (!state.doc || state.tool !== 'select') return;
       const screen = App.eventToScreen(event);
-      const hit = App.hitTest(App.screenToDoc(screen.x, screen.y));
+      const hit = App.hitTest(App.screenToDoc(screen.x, screen.y), { preferSelected: true });
       if (hit?.type === 'text') startTextEdit(hit, { selectAll: true });
       else if (hit) App.focusInspectorContent?.();
     });
@@ -1250,9 +1253,10 @@
       event.preventDefault();
       if (!state.doc) return;
       const screen = App.eventToScreen(event);
-      const hit = App.hitTest(App.screenToDoc(screen.x, screen.y), { includeLocked: true });
+      const point = App.screenToDoc(screen.x, screen.y);
+      const hit = App.hitTest(point, { includeLocked: true, preferSelected: true });
       if (hit && !state.selection.includes(hit.id)) App.select(hit.id);
-      App.openContextMenu?.(event.clientX, event.clientY, !!hit);
+      App.openContextMenu?.(event.clientX, event.clientY, !!hit, App.hitTestAll(point, { includeLocked: true }));
     });
     dom.textEditor.addEventListener('input', onTextInput);
     dom.textEditor.addEventListener('blur', () => {

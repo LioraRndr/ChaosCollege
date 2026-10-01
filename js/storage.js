@@ -117,11 +117,34 @@
   async function putProject(record) {
     await open();
     if (memoryFallback) {
+      if (record.thumb === undefined) record.thumb = memoryFallback.projects.get(record.id)?.thumb || null;
       memoryFallback.projects.set(record.id, record);
       return record;
     }
-    await tx('projects', 'readwrite', (store) => requestToPromise(store.put(record)));
+    if (record.thumb !== undefined) {
+      await tx('projects', 'readwrite', (store) => requestToPromise(store.put(record)));
+      return record;
+    }
+    /* no thumbnail given: keep the stored one, in the same transaction */
+    await tx('projects', 'readwrite', (store) => requestToPromise(store.get(record.id)).then((existing) => {
+      record.thumb = existing?.thumb || null;
+      return requestToPromise(store.put(record));
+    }));
     return record;
+  }
+
+  async function putThumb(id, thumb) {
+    await open();
+    if (memoryFallback) {
+      const record = memoryFallback.projects.get(id);
+      if (record) record.thumb = thumb;
+      return;
+    }
+    await tx('projects', 'readwrite', (store) => requestToPromise(store.get(id)).then((record) => {
+      if (!record) return null;
+      record.thumb = thumb;
+      return requestToPromise(store.put(record));
+    }));
   }
 
   async function renameProject(id, name) {
@@ -371,6 +394,7 @@
     listProjects,
     getProject,
     putProject,
+    putThumb,
     renameProject,
     deleteProject,
     putAsset,

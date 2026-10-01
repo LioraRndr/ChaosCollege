@@ -20,13 +20,15 @@ Then open `http://127.0.0.1:8080`. On macOS/Linux, `./serve.sh` runs the same co
 
 - Project home screen: quick presets, recent projects with thumbnails, search / sort, open, rename, duplicate, export `.chaos`, delete, storage usage.
 - New project dialog: common ratios, social platforms, print at 300 DPI, screens, legacy sizes, or custom size in px / mm / cm / in with DPI.
-- Autosave to the local project library; **Ctrl+S** saves immediately (and writes the linked `.chaos` file if one is open), **Ctrl+Shift+S** saves a `.chaos` file with embedded images and imported fonts, **Ctrl+O** opens one.
+- Autosave to the local project library (the home screen footer shows which browser / origin holds it); **Ctrl+S** saves immediately (and writes the linked `.chaos` file if one is open), **Ctrl+Shift+S** saves a `.chaos` file with embedded images and imported fonts, **Ctrl+O** opens one. Once a project is linked to a `.chaos` file, autosave also refreshes that file while write permission is granted (after a browser restart, press Ctrl+S once to grant it again).
+- If projects vanish after a restart, check that you opened the app the same way (desktop shortcut vs. a different browser or `http://`), and that the browser is not set to clear site data on exit.
 - Canvas size changes live under **图像 → 画布大小… / 画布预设** and are applied once, with scale / stretch / anchor modes.
 
 ## Editing
 
 - Tool rail: select, transform (distort / perspective / skew / mesh warp), hand, zoom, text, shape, brush, eyedropper, image import, generators, stickers; foreground / spare colors.
 - Every layer type (image, text, shape, sticker, generator, brush stroke, window, 3D shatter) supports non-uniform stretch with 8 handles, rotation, flip, perspective / mesh warp, effects, layer styles (shadow, outer glow, sticker outline, frosted backdrop blur), clipping masks, blend modes and the repeater.
+- Clicking where a selected layer lies keeps editing it even if other layers cover it (select a lower layer in the layers panel, then drag it on the canvas); right-click → **选择图层** lists every layer under the cursor.
 - Viewport zoom / pan, smart snapping guides, marquee and multi-select, align / distribute, lock / hide, rename, drag reorder, copy / paste, paste images from the clipboard, drag & drop images / fonts / project files, undo history panel.
 - Text: 160+ curated system fonts with availability detection, "read all local fonts" (Chrome / Edge), imported TTF / OTF / WOFF fonts saved to a local font library; weight, italic, tracking, line height, vertical text, arc bend, gradient / chrome / holo fills, double outline, stretch, quick style presets, on-canvas editing.
 

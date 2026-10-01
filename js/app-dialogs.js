@@ -101,6 +101,7 @@
         </section>
         <footer class="home-foot">
           <span>${CC.storage.isPersistent() ? '工程自动保存在本机浏览器（IndexedDB），不会上传。' : '当前浏览器无法使用 IndexedDB，工程只保存在内存中，请及时另存工程文件。'}</span>
+          <span title="换浏览器或换打开方式（直接打开 / 本地服务器）会看到另一个独立的工程库">工程库位置：${escapeHtml(storageLocation())}</span>
           <span>${estimate ? `已用 ${U.formatBytes(estimate.usage)} / 可用约 ${U.formatBytes(estimate.quota)}` : ''}${persisted ? ' · 已启用持久存储' : ` · <button class="link-button" data-home-action="persist">申请持久存储</button>`}</span>
           <button class="link-button" data-home-action="about">数据存储说明</button>
         </footer>
@@ -114,6 +115,18 @@
       }
     });
     ui.enhanceSelects(el);
+  }
+
+  /* The library belongs to one browser profile and one origin; showing both
+     explains an "empty" library after opening the app another way. */
+  function storageLocation() {
+    const brands = navigator.userAgentData?.brands?.map((item) => item.brand) || [];
+    const ua = navigator.userAgent;
+    const browser = brands.find((name) => /Edge/.test(name)) ? 'Edge'
+      : brands.find((name) => /Chrome/.test(name)) ? 'Chrome'
+        : /Edg\//.test(ua) ? 'Edge' : /Chrome\//.test(ua) ? 'Chrome' : /Firefox\//.test(ua) ? 'Firefox' : /Safari\//.test(ua) ? 'Safari' : '浏览器';
+    const origin = location.protocol === 'file:' ? '直接打开的本地文件 (file://)' : location.origin;
+    return `${browser} · ${origin}`;
   }
 
   function projectCard(project, isCurrent) {
@@ -710,6 +723,26 @@
     await writable.close();
   }
 
+  /* Autosave also refreshes the linked .chaos file, but only while write
+     permission is already granted (after a restart Chrome asks again on the
+     next Ctrl+S); it never prompts by itself. */
+  let linkedWriteRunning = false;
+  const autoWriteLinkedFile = U.debounce(async () => {
+    const handle = state.fileHandle;
+    if (!handle || !state.doc || linkedWriteRunning) return;
+    try {
+      if (!handle.queryPermission || (await handle.queryPermission({ mode: 'readwrite' })) !== 'granted') return;
+      linkedWriteRunning = true;
+      const writable = await handle.createWritable();
+      await writable.write(await buildCurrentFile());
+      await writable.close();
+    } catch (error) {
+      console.warn('linked file autosave failed', error);
+    } finally {
+      linkedWriteRunning = false;
+    }
+  }, 4000);
+
   async function saveCommand() {
     if (!state.doc) return;
     App.stopTextEditing(true);
@@ -909,7 +942,9 @@
       body: `
         <div class="about-text">
           <p><strong>工程库</strong>：所有工程、图片和导入字体都自动保存在当前浏览器配置文件的 IndexedDB 中，不上传任何服务器。</p>
-          <p><strong>不同打开方式是不同的库</strong>：直接打开 index.html（file://）与通过本地服务器（http://127.0.0.1:8080）打开时，浏览器把它们视为不同来源，工程库互不可见。桌面快捷方式使用 file:// 方式。</p>
+          <p><strong>不同打开方式是不同的库</strong>：直接打开 index.html（file://）与通过本地服务器（http://127.0.0.1:8080）打开时，浏览器把它们视为不同来源，工程库互不可见；Chrome 与 Edge、同一浏览器的不同用户 / 无痕窗口也各有一个库。桌面快捷方式使用 Chrome（没有时用 Edge）的 file:// 方式。当前位置：${escapeHtml(storageLocation())}。</p>
+          <p><strong>浏览器设置</strong>：如果开启了「关闭所有窗口时清除 Cookie 及网站数据」，或用清理软件清理浏览器，工程库会在重启后被清空。</p>
+          <p><strong>关联工程文件</strong>：用「另存为工程文件」保存一次后，该工程就关联了这个 .chaos 文件。之后自动保存会顺带写入它（浏览器重启后需要按一次 Ctrl+S 重新授权）。</p>
           <p><strong>备份与迁移</strong>：用「文件 → 另存为工程文件」导出 .chaos（单个 JSON 文件，内含图片和用到的导入字体），可在其他电脑或浏览器里用「打开工程文件」恢复。清除浏览器数据会删除工程库，请定期导出重要工程。</p>
           <p><strong>持久存储</strong>：可在工程主页底部申请持久存储，降低浏览器在磁盘紧张时自动清理的可能。</p>
         </div>`,
@@ -1079,9 +1114,22 @@
     });
   }
 
-  function openContextMenu(x, y, onLayer) {
+  function openContextMenu(x, y, onLayer, under = []) {
+    /* every layer under the cursor, so covered layers can be picked directly */
+    const pick = under.length > 1
+      ? [{
+        label: '选择图层',
+        icon: 'layers',
+        submenu: under.map((layer) => ({
+          label: layer.name || M.TYPE_NAMES?.[layer.type] || layer.type,
+          checked: state.selection.includes(layer.id),
+          action: () => App.select(layer.id),
+        })),
+      }, { separator: true }]
+      : [];
     const items = onLayer
       ? [
+        ...pick,
         { label: '剪切', shortcut: 'Ctrl+X', action: () => App.copySelection(true) },
         { label: '复制', shortcut: 'Ctrl+C', action: () => App.copySelection(false) },
         { label: '粘贴', shortcut: 'Ctrl+V', disabled: !state.clipboard, action: () => App.pasteClipboard() },
@@ -1113,6 +1161,7 @@
     quickExport,
     saveCommand,
     saveAsFile,
+    autoWriteLinkedFile,
     openProjectFile,
     openProjectFromFile,
     chooseImages,
