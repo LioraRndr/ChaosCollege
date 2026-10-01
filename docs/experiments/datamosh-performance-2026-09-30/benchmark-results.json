@@ -1,0 +1,294 @@
+{
+  "appSha256": {
+    "before": "3758f3a8c40ee3dec7c6d0f95d235e1aae40eae366d2fae4f5912867f1952e7d",
+    "after": "d01b56d439f84b744798cd78b7f06f6885723aed20532ccf4051b729f8f2d931"
+  },
+  "pixelCases": [
+    {
+      "name": "preset-1x",
+      "pixels": 1012500,
+      "differentBytes": 0,
+      "status": "PASS",
+      "buffers": {
+        "createdCanvases": 2,
+        "retainedBufferBytes": 8100000,
+        "cacheBytes": 0,
+        "cacheSize": 0,
+        "cacheKeys": []
+      }
+    },
+    {
+      "name": "preset-2x-and-large-buffer-release",
+      "pixels": 4050000,
+      "differentBytes": 0,
+      "status": "PASS",
+      "buffers": {
+        "createdCanvases": 2,
+        "retainedBufferBytes": 0,
+        "cacheBytes": 0,
+        "cacheSize": 0,
+        "cacheKeys": []
+      }
+    },
+    {
+      "name": "tiny-2x2",
+      "pixels": 4,
+      "differentBytes": 0,
+      "status": "PASS",
+      "buffers": {
+        "createdCanvases": 2,
+        "retainedBufferBytes": 32,
+        "cacheBytes": 0,
+        "cacheSize": 0,
+        "cacheKeys": []
+      }
+    },
+    {
+      "name": "partial-edge-blocks",
+      "pixels": 589,
+      "differentBytes": 0,
+      "status": "PASS",
+      "buffers": {
+        "createdCanvases": 2,
+        "retainedBufferBytes": 4712,
+        "cacheBytes": 0,
+        "cacheSize": 0,
+        "cacheKeys": []
+      }
+    },
+    {
+      "name": "small-block-max-feedback",
+      "pixels": 26167,
+      "differentBytes": 0,
+      "status": "PASS",
+      "buffers": {
+        "createdCanvases": 2,
+        "retainedBufferBytes": 209336,
+        "cacheBytes": 0,
+        "cacheSize": 0,
+        "cacheKeys": []
+      }
+    },
+    {
+      "name": "zero-feedback",
+      "pixels": 76879,
+      "differentBytes": 0,
+      "status": "PASS",
+      "buffers": {
+        "createdCanvases": 2,
+        "retainedBufferBytes": 615032,
+        "cacheBytes": 0,
+        "cacheSize": 0,
+        "cacheKeys": []
+      }
+    },
+    {
+      "name": "zero-distance",
+      "pixels": 76879,
+      "differentBytes": 0,
+      "status": "PASS",
+      "buffers": {
+        "createdCanvases": 0,
+        "retainedBufferBytes": 0,
+        "cacheBytes": 0,
+        "cacheSize": 0,
+        "cacheKeys": []
+      }
+    },
+    {
+      "name": "zero-infection",
+      "pixels": 76879,
+      "differentBytes": 0,
+      "status": "PASS",
+      "buffers": {
+        "createdCanvases": 0,
+        "retainedBufferBytes": 0,
+        "cacheBytes": 0,
+        "cacheSize": 0,
+        "cacheKeys": []
+      }
+    },
+    {
+      "name": "hidden-donor-cover",
+      "pixels": 76879,
+      "differentBytes": 0,
+      "status": "PASS",
+      "buffers": {
+        "createdCanvases": 2,
+        "retainedBufferBytes": 615032,
+        "cacheBytes": 0,
+        "cacheSize": 0,
+        "cacheKeys": []
+      }
+    },
+    {
+      "name": "hidden-donor-contain",
+      "pixels": 76879,
+      "differentBytes": 0,
+      "status": "PASS",
+      "buffers": {
+        "createdCanvases": 2,
+        "retainedBufferBytes": 615032,
+        "cacheBytes": 0,
+        "cacheSize": 0,
+        "cacheKeys": []
+      }
+    },
+    {
+      "name": "donor-zero-distance",
+      "pixels": 76879,
+      "differentBytes": 0,
+      "status": "PASS",
+      "buffers": {
+        "createdCanvases": 2,
+        "retainedBufferBytes": 615032,
+        "cacheBytes": 0,
+        "cacheSize": 0,
+        "cacheKeys": []
+      }
+    },
+    {
+      "name": "deleted-donor-fallback",
+      "pixels": 76879,
+      "differentBytes": 0,
+      "status": "PASS",
+      "buffers": {
+        "createdCanvases": 2,
+        "retainedBufferBytes": 615032,
+        "cacheBytes": 0,
+        "cacheSize": 0,
+        "cacheKeys": []
+      }
+    },
+    {
+      "name": "transparent-pixels",
+      "pixels": 76879,
+      "differentBytes": 0,
+      "status": "PASS",
+      "buffers": {
+        "createdCanvases": 2,
+        "retainedBufferBytes": 615032,
+        "cacheBytes": 0,
+        "cacheSize": 0,
+        "cacheKeys": []
+      }
+    },
+    {
+      "name": "weak-infection",
+      "pixels": 26167,
+      "differentBytes": 0,
+      "status": "PASS",
+      "buffers": {
+        "createdCanvases": 2,
+        "retainedBufferBytes": 209336,
+        "cacheBytes": 0,
+        "cacheSize": 0,
+        "cacheKeys": []
+      }
+    },
+    {
+      "name": "reuse-preset-1x",
+      "differentBytes": 0,
+      "status": "PASS"
+    },
+    {
+      "name": "reuse-hidden-donor-contain",
+      "differentBytes": 0,
+      "status": "PASS"
+    },
+    {
+      "name": "reuse-transparent-pixels",
+      "differentBytes": 0,
+      "status": "PASS"
+    },
+    {
+      "name": "reuse-preset-2x-and-large-buffer-release",
+      "differentBytes": 0,
+      "status": "PASS"
+    },
+    {
+      "name": "reuse-preset-1x",
+      "differentBytes": 0,
+      "status": "PASS"
+    }
+  ],
+  "cacheChecks": [
+    "64 MiB pixel budget",
+    "80-entry cap",
+    "eviction accounting",
+    "donor invalidation",
+    "clear releases backing stores"
+  ],
+  "benchmarks": [
+    {
+      "name": "900x1125-default",
+      "samples": 9,
+      "beforeMedianMs": 116.80000001192093,
+      "afterMedianMs": 104.30000001192093,
+      "reductionPercent": 10.702054793428262,
+      "oldTimes": [
+        119.30000001192093,
+        116.80000001192093,
+        116.5,
+        109.19999998807907,
+        118.30000001192093,
+        117.40000003576279,
+        112.89999997615814,
+        112.10000002384186,
+        121.69999998807907
+      ],
+      "newTimes": [
+        95.09999996423721,
+        96.19999998807907,
+        112.20000004768372,
+        108.09999996423721,
+        95.30000001192093,
+        93.30000001192093,
+        105.19999998807907,
+        104.30000001192093,
+        104.5
+      ],
+      "oldAllocations": 33,
+      "newAllocations": 2
+    },
+    {
+      "name": "small-block-480x360",
+      "samples": 9,
+      "beforeMedianMs": 231.80000001192093,
+      "afterMedianMs": 201.80000001192093,
+      "reductionPercent": 12.942191543769265,
+      "oldTimes": [
+        231.80000001192093,
+        242.60000002384186,
+        228.80000001192093,
+        225.80000001192093,
+        235.19999998807907,
+        253.10000002384186,
+        230.10000002384186,
+        231.5,
+        246.89999997615814
+      ],
+      "newTimes": [
+        195,
+        201.80000001192093,
+        210.9000000357628,
+        198.89999997615814,
+        209.5,
+        203.80000001192093,
+        200.89999997615814,
+        197.10000002384186,
+        229.60000002384186
+      ],
+      "oldAllocations": 33,
+      "newAllocations": 2
+    }
+  ],
+  "bufferReuse": {
+    "createdCanvases": 2,
+    "retainedBufferBytes": 8100000,
+    "cacheBytes": 0,
+    "cacheSize": 0,
+    "cacheKeys": []
+  },
+  "status": "PASS"
+}

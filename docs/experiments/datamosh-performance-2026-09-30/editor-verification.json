@@ -1,0 +1,17 @@
+{
+  "date": "2026-09-30",
+  "browser": "Chromium, Codex in-app browser",
+  "servedFrom": "http://127.0.0.1:8089/index.html",
+  "checks": {
+    "singleImagePresetRendering": "PASS",
+    "undoToZeroInfection": "PASS",
+    "redoToPreset72_120_78": "PASS",
+    "zeroDistanceInput": "PASS",
+    "twoImageLayersAndDonorSelection": "PASS",
+    "deleteAndUndoRestore": "PASS",
+    "export2xSuccessToastAndReady": "PASS",
+    "downloadedPngDimensionsAndContent": "NOT_VERIFIED"
+  },
+  "warnErrorLogs": [],
+  "proofs": ["editor-proof.png", "export-ui-proof.png"]
+}

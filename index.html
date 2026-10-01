@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta name="theme-color" content="#0d0d10">
+  <title>CHAOS.COLLAGE</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230c0c0e'/%3E%3Crect x='6' y='11' width='13' height='15' rx='2.5' fill='none' stroke='%238b8b93' stroke-width='1.6'/%3E%3Crect x='12.5' y='6' width='13' height='15' rx='2.5' fill='%23d7ff2f' transform='rotate(8 19 13.5)'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand" aria-label="CHAOS.COLLAGE">
+        <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
+          <rect x="5" y="10" width="15.5" height="17.5" rx="3" fill="none" stroke="#8b8b93" stroke-width="1.7"/>
+          <rect x="11.5" y="4.5" width="15.5" height="17.5" rx="3" fill="#d7ff2f" transform="rotate(8 19.25 13.25)"/>
+        </svg>
+        <div>
+          <strong>CHAOS.COLLAGE</strong>
+          <small>生成式海报机 · ALPHA</small>
+        </div>
+      </div>
+
+      <div class="top-actions" role="toolbar" aria-label="主要操作">
+        <button class="ui-button icon-only" id="importButton" data-icon="image" title="导入图片" aria-label="导入图片"></button>
+        <button class="ui-button icon-only" id="addTextButton" data-icon="text" title="添加文字" aria-label="添加文字"></button>
+        <button class="ui-button icon-only" id="addWindowButton" data-icon="window" title="添加窗口" aria-label="添加窗口"></button>
+        <button class="ui-button icon-only" id="addShapeButton" data-icon="shape" title="添加形状" aria-label="添加形状"></button>
+        <span class="toolbar-separator"></span>
+        <button class="ui-button icon-only" id="undoButton" data-icon="undo" title="撤销 (Ctrl/Cmd+Z)" aria-label="撤销"></button>
+        <button class="ui-button icon-only" id="redoButton" data-icon="redo" title="重做 (Ctrl/Cmd+Shift+Z)" aria-label="重做"></button>
+        <button class="ui-button icon-only" id="remixButton" data-icon="remix" title="随机重排当前构图" aria-label="随机重排"></button>
+        <span class="toolbar-separator"></span>
+        <label class="export-scale" title="导出倍率">
+          <select class="select-input" id="exportScaleSelect" aria-label="导出倍率">
+            <option value="1">1×</option>
+            <option value="2" selected>2×</option>
+          </select>
+        </label>
+        <button class="ui-button icon-only primary" id="exportButton" data-icon="export" title="导出 PNG" aria-label="导出 PNG"></button>
+      </div>
+    </header>
+
+    <main class="main-grid">
+      <aside class="left-panel panel">
+        <nav class="panel-tabs" aria-label="左侧面板页签">
+          <button class="tab-button active" data-tab="layers">图层</button>
+          <button class="tab-button" data-tab="recipes">配方</button>
+          <button class="tab-button" data-tab="assets">素材</button>
+        </nav>
+
+        <section class="tab-panel active" data-panel="layers">
+          <div class="panel-heading">
+            <span>场景堆栈</span>
+            <button class="icon-button icon-only" id="duplicateButton" data-icon="duplicate" title="复制选中图层" aria-label="复制选中图层"></button>
+          </div>
+          <div id="layersList" class="layers-list" aria-label="图层"></div>
+        </section>
+
+        <section class="tab-panel" data-panel="recipes">
+          <div class="panel-heading"><span>一键配方</span></div>
+          <div class="recipe-grid" id="recipeGrid">
+            <button class="recipe-card" data-recipe="digital-garden">
+              <span class="recipe-preview garden"></span>
+              <strong>DIGITAL GARDEN</strong>
+              <small>照片 + 纸屑 + 警示层叠</small>
+            </button>
+            <button class="recipe-card" data-recipe="windows-hell">
+              <span class="recipe-preview windows"></span>
+              <strong>WINDOWS HELL</strong>
+              <small>复古弹窗 + 阈值 + 重复</small>
+            </button>
+            <button class="recipe-card" data-recipe="browser-crash">
+              <span class="recipe-preview browser"></span>
+              <strong>BROWSER CRASH</strong>
+              <small>网页残骸 + 橙青对撞</small>
+            </button>
+            <button class="recipe-card" data-recipe="xerox-punk">
+              <span class="recipe-preview xerox"></span>
+              <strong>XEROX PUNK</strong>
+              <small>硬调黑白 + 颗粒 + 字体回声</small>
+            </button>
+            <button class="recipe-card blank" data-recipe="blank">
+              <span class="recipe-preview empty"><svg viewBox="0 0 16 16" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><path d="M8 3.2v9.6M3.2 8h9.6"/></svg></span>
+              <strong>空白海报</strong>
+              <small>从一张空画布开始</small>
+            </button>
+          </div>
+        </section>
+
+        <section class="tab-panel" data-panel="assets">
+          <div class="panel-heading"><span>参考图片</span></div>
+          <button class="drop-import" id="dropImportButton">
+            <span>拖入或导入图片</span>
+            <small>PNG / JPG / WEBP</small>
+          </button>
+          <div id="sampleAssets" class="sample-assets"></div>
+          <div class="panel-heading spaced"><span>生成器</span></div>
+          <div class="generator-grid">
+            <button class="generator-button" data-generator="window">错误窗口</button>
+            <button class="generator-button" data-generator="barcode">条形码</button>
+            <button class="generator-button" data-generator="arrow">箭头</button>
+            <button class="generator-button" data-generator="burst">爆裂形</button>
+            <button class="generator-button" data-generator="tape">胶带</button>
+            <button class="generator-button" data-generator="confetti">纸屑</button>
+            <button class="generator-button" data-generator="shatter">3D 爆裂</button>
+            <button class="generator-button" data-generator="spike">3D 尖刺</button>
+          </div>
+        </section>
+      </aside>
+
+      <section class="workspace" id="workspace">
+        <div class="workspace-head">
+          <div class="canvas-meta">
+            <span id="projectName">UNTITLED_001</span>
+            <span id="canvasSizeLabel">900 × 1125</span>
+          </div>
+          <div class="workspace-controls">
+            <button class="chip-button active" data-format="portrait">竖版</button>
+            <button class="chip-button" data-format="square">方形</button>
+            <button class="chip-button" data-format="landscape">横版</button>
+            <button class="chip-button" id="fitButton">适应</button>
+          </div>
+        </div>
+
+        <div class="stage-viewport" id="stageViewport">
+          <div class="drop-overlay" id="dropOverlay">
+            <strong>拖放到这里</strong>
+            <span>松开鼠标，添加为新图层</span>
+          </div>
+          <div class="stage-frame" id="stageFrame">
+            <canvas id="artboard" width="900" height="1125" aria-label="海报画布"></canvas>
+          </div>
+        </div>
+
+        <div class="statusbar">
+          <div><span class="status-dot"></span><span id="statusText">就绪</span></div>
+          <div class="status-help">拖动移动 · 角柄缩放 · 顶柄旋转</div>
+          <div>种子 <button class="seed-button" id="seedButton">481516</button></div>
+        </div>
+      </section>
+
+      <aside class="right-panel panel">
+        <div class="panel-heading inspector-title">
+          <span>检查器</span>
+          <span id="selectedTypeBadge" class="type-badge">无</span>
+        </div>
+        <div id="inspector" class="inspector"></div>
+      </aside>
+    </main>
+  </div>
+
+  <input id="fileInput" type="file" accept="image/*" hidden>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="samples.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

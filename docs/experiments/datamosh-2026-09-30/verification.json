@@ -1,0 +1,26 @@
+{
+  "browser": "Codex in-app Chromium",
+  "scene": "BLANK_POSTER / only 数字花园 image layer / 900x1125",
+  "preset": {
+    "infection": 72,
+    "block": 14,
+    "distance": 120,
+    "angle": 0,
+    "persistence": 78
+  },
+  "checks": {
+    "visibleLocalDragging": "PASS",
+    "undo": "PASS",
+    "redo": "PASS",
+    "deterministicScreenshot": "PASS",
+    "zeroDistanceMatchesOriginal": "PASS",
+    "export2xBlobAndUi": "PASS",
+    "exportedFileDimensions": "NOT_VERIFIED"
+  },
+  "screenshotSha256": {
+    "clean": "9c02a40e82b5f615549a89d7dcb9f234b41637b0f3766ba5dadd8c5acca2fedc",
+    "preset": "f953690c54f28112be10d1eedfe23eac88a6bb803bcae31b43b3a88914119bcb",
+    "repeat": "f953690c54f28112be10d1eedfe23eac88a6bb803bcae31b43b3a88914119bcb"
+  },
+  "artisticAcceptance": "awaiting user review"
+}

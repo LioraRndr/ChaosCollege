@@ -1,0 +1,22 @@
+# Local browser and agent tool state
+.playwright-cli/
+.superpowers/
+
+# Local environment and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials.json
+
+# OS, editor, and runtime artifacts
+.DS_Store
+Thumbs.db
+Desktop.ini
+.vscode/
+.idea/
+__pycache__/
+*.py[cod]
+*.log
+*.tmp
