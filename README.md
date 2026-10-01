@@ -1,12 +1,12 @@
 # CHAOS.COLLAGE
 
-A standalone browser prototype for making dense Y2K / cyber-collage / Xerox-style static graphics.
+A standalone browser editor for dense Y2K / Y3K / cyber-collage / Xerox-style static graphics. No install, no build step, no network.
 
 ## Run
 
 On Windows, double-click **CHAOS.COLLAGE** on the desktop, or run `launch.bat` in this folder. That opens the editor in a Chrome/Edge app window.
 
-You can also open `index.html` directly in a modern browser. No install, build step, video processing, or network connection is required. If the browser restricts local files, start a plain static server:
+You can also open `index.html` directly in Chrome or Edge. If the browser restricts local files, start a plain static server:
 
 ```bash
 python -m http.server 8080
@@ -14,40 +14,39 @@ python -m http.server 8080
 
 Then open `http://127.0.0.1:8080`. On macOS/Linux, `./serve.sh` runs the same command.
 
-## Included in the prototype
+> Projects are stored in the browser profile (IndexedDB). Opening `index.html` directly (`file://`) and through the local server (`http://127.0.0.1:8080`) are different origins with separate project libraries. Use **文件 → 另存为工程文件** to back up or move projects as `.chaos` files.
 
-- Image import and drag/drop
-- Text, retro error windows, shapes, arrows, barcodes, tape, and confetti
-- Move, resize, rotate, duplicate, reorder, visibility, opacity, and blend modes
-- Deterministic repeater/scatter system with seed, step, fade, scale, and jitter controls
-- Procedural 3D shatter layer with two forms — exploded shards or a coherent spiky solid — rendered to 2D in pure Canvas: perspective projection, depth-sorted glossy shards, banded Y2K shading, accent faces, wireframe, and radial spikes, all seed-driven
-- Image effects: contrast, saturation, posterize, threshold, dither, halftone, pixelate, deterministic block glitch, RGB split, noise, and invert
-- Static Datamosh Frame: local stuck-frame feedback, glued texture, stretched ribbons, and accumulated macroblock damage
-- Four visual recipes
-- Portrait, square, and landscape canvases
-- 1x and 2x PNG export
-- Undo/redo and keyboard nudging
+## Projects
 
-## Static Datamosh Frame workflow
+- Project home screen: quick presets, recent projects with thumbnails, search / sort, open, rename, duplicate, export `.chaos`, delete, storage usage.
+- New project dialog: common ratios, social platforms, print at 300 DPI, screens, legacy sizes, or custom size in px / mm / cm / in with DPI.
+- Autosave to the local project library; **Ctrl+S** saves immediately (and writes the linked `.chaos` file if one is open), **Ctrl+Shift+S** saves a `.chaos` file with embedded images and imported fonts, **Ctrl+O** opens one.
+- Canvas size changes live under **图像 → 画布大小… / 画布预设** and are applied once, with scale / stretch / anchor modes.
 
-1. Select an image layer and open `IMAGE FX` in the Inspector.
-2. Under `DATAMOSH FRAME`, click **套用卡帧拖坏** to start with a stuck-frame preset.
-3. Keep `前一帧` on `自身 / 卡帧反馈` to make one image locally stick, stretch, and break down.
-4. Adjust `感染率` for the damaged area, `拖拽距离` and `流向角` for the pull, `矢量块` for the block size, and `卡帧累积` for repeated damage. Zero infection or zero drag distance leaves the self-source image intact.
-5. Optionally choose another image layer as `前一帧` to feed its texture into the damaged regions; the source layer may be hidden. Export the final still as PNG.
+## Editing
 
-`Block glitch` remains a separate row-displacement/RGB-damage effect and can be combined with Datamosh Frame.
+- Tool rail: select, transform (distort / perspective / skew / mesh warp), hand, zoom, text, shape, brush, eyedropper, image import, generators, stickers; foreground / spare colors.
+- Every layer type (image, text, shape, sticker, generator, brush stroke, window, 3D shatter) supports non-uniform stretch with 8 handles, rotation, flip, perspective / mesh warp, effects, layer styles (shadow, outer glow, sticker outline, frosted backdrop blur), clipping masks, blend modes and the repeater.
+- Viewport zoom / pan, smart snapping guides, marquee and multi-select, align / distribute, lock / hide, rename, drag reorder, copy / paste, paste images from the clipboard, drag & drop images / fonts / project files, undo history panel.
+- Text: 160+ curated system fonts with availability detection, "read all local fonts" (Chrome / Edge), imported TTF / OTF / WOFF fonts saved to a local font library; weight, italic, tracking, line height, vertical text, arc bend, gradient / chrome / holo fills, double outline, stretch, quick style presets, on-canvas editing.
+
+## Effects, generators, stickers
+
+- 40 stackable effects in six groups (color, print / pixel, glitch, distort, light / material, stylize), including the approved **Datamosh Frame** stuck-frame look (pixel-identical to the 2026-09-30 algorithm on opaque images) and **Block glitch**.
+- 18 one-click looks (Y3K, glitch, print, light).
+- 26 parametric generators (UI parts, codes, patterns, 3D wireframes, vaporwave terrain, type bands / badges, Y3K grain gradients, liquid metal, cybersigils, HUD) plus error windows, barcode, tape, confetti and 3D shatter.
+- 55 recolorable vector stickers (Y2K symbols, UI / computer, pixel art).
+- Export PNG / JPG / WEBP at 0.5×–4×, optional transparency, whole canvas or selected layers only.
 
 ## Useful shortcuts
 
-- `Ctrl/Cmd + Z`: undo
-- `Ctrl/Cmd + Shift + Z`: redo
-- `Ctrl/Cmd + D`: duplicate selected layer
-- Arrow keys: nudge layer
-- Shift + arrow keys: nudge by 10 pixels
-- Delete/Backspace: delete selected layer
+- Tools: `V` `W` `H` `Z` `T` `U` `B` `I`, `G` generators, `E` stickers, hold `Space` to pan
+- `Ctrl/Cmd + Z` / `Ctrl/Cmd + Shift + Z`: undo / redo
+- `Ctrl/Cmd + C / X / V`, `Ctrl/Cmd + D` duplicate, `Delete` remove, `Ctrl/Cmd + A` select all
+- `Ctrl/Cmd + 0` fit, `Ctrl/Cmd + 1` 100%, `Ctrl/Cmd + wheel` zoom
+- `Ctrl/Cmd + S` save, `Ctrl/Cmd + Shift + S` save project file, `Ctrl/Cmd + E` export
+- Full list: **帮助 → 快捷键**
 
 ## Project documentation
 
-Start with [`docs/README.md`](docs/README.md) for the project map, current handoff,
-and local session history. Agent-specific working rules live in [`AGENTS.md`](AGENTS.md).
+Start with [`docs/README.md`](docs/README.md) for the project map, current handoff, research notes and local session history. Agent-specific working rules live in [`AGENTS.md`](AGENTS.md).

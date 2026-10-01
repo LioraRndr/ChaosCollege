@@ -8,6 +8,11 @@
 
 代理的强制启动/收尾流程位于根目录 [`AGENTS.md`](../AGENTS.md)。新 session 应先读稳定事实，再读当前状态，最后只补充阅读最近的历史记录。
 
+补充资料：
+
+- **调研**：[`research/y3k.md`](research/y3k.md) — Y3K 风格调研、来源与功能对照。
+- **验证证据**：[`experiments/`](experiments/) — 每次重要改动的测试脚本、基准与截图，例如 [`editor-upgrade-2026-10-01`](experiments/editor-upgrade-2026-10-01/README.md)。
+
 ## 维护原则
 
 - `PROJECT_CONTEXT.md` 只在稳定事实变化时更新。

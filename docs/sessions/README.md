@@ -10,8 +10,8 @@ YYYY-MM-DD_HHmm-<short-slug>.md
 
 ## 最近记录（新到旧）
 
+- [`2026-10-01_1433-product-editor-upgrade.md`](2026-10-01_1433-product-editor-upgrade.md) — 产品化升级：工程库与 .chaos 文件、工程主页、新建预设、画布大小对话框、工具栏与变形、40 个效果与一键风格、生成器与贴纸、字体库、Y3K 调研与实现；删除配方与参考图；本地 Git 基线（未推送）。
 - [`2026-10-01_1352-git-private-github.md`](2026-10-01_1352-git-private-github.md) — 初始化 Git 版本管理，建立 LioraRndr/ChaosCollege 私有仓库并推送 main。
-
 - [`2026-09-30_2240-datamosh-intent-review.md`](2026-09-30_2240-datamosh-intent-review.md) — 帧感染改为单图卡帧反馈，用户认可后完成小范围性能优化；19 组逐像素一致，两组基准约快 11%/13%，增加缓存与临时画布预算，保存证据。
 - [`2026-08-31_1556-desktop-launcher.md`](2026-08-31_1556-desktop-launcher.md) — Windows 桌面一键启动：品牌图标 + 静默 VBS/PS1，Chrome/Edge 应用窗口打开编辑器。
 - [`2026-08-26_1417-shatter-3d-explode-layer.md`](2026-08-26_1417-shatter-3d-explode-layer.md) — 新增 3D 爆裂碎片图层（shatter，双形态：爆裂 + 尖刺实体）：icosphere + 透视投影纯 Canvas 软渲染。
