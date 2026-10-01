@@ -105,6 +105,7 @@
       shadow: { on: false, color: '#000000', opacity: 0.45, blur: 18, distance: 14, angle: 135 },
       glow: { on: false, color: '#d7ff2f', opacity: 0.9, blur: 24, strength: 1 },
       outline: { on: false, color: '#ffffff', width: 10 },
+      backdrop: { on: false, blur: 24, saturate: 140, brightness: 105 },
     };
   }
 
@@ -219,6 +220,7 @@
       shadow: { ...style.shadow, ...(rawStyle.shadow || {}) },
       glow: { ...style.glow, ...(rawStyle.glow || {}) },
       outline: { ...style.outline, ...(rawStyle.outline || {}) },
+      backdrop: { ...style.backdrop, ...(rawStyle.backdrop || {}) },
     };
     layer.effects = (raw?.effects || []).map((effect) => CC.effects.normalize(effect)).filter(Boolean);
     if (layer.warp) {
@@ -374,6 +376,8 @@
     { id: 'sticker', name: '贴纸双描边', values: { fillMode: 'solid', fill: '#ff4ca7', strokeWidth: 5, stroke: '#ffffff', stroke2Width: 4, stroke2: '#111111', fontFamily: 'Arial Black', fontWeight: 900 } },
     { id: 'mono', name: '等宽注释', values: { fillMode: 'solid', fill: '#111111', strokeWidth: 0, stroke2Width: 0, fontFamily: 'Courier New', fontWeight: 700, tracking: 2, italic: false } },
     { id: 'serif', name: '杂志衬线', values: { fillMode: 'solid', fill: '#111111', strokeWidth: 0, stroke2Width: 0, fontFamily: 'Georgia', fontWeight: 400, italic: true, tracking: -1 } },
+    { id: 'y3k-chrome', name: 'Y3K 液态铬', values: { fillMode: 'solid', fill: '#ffffff', strokeWidth: 0, stroke2Width: 0, fontFamily: 'Arial Black', fontWeight: 900, italic: false, stretchX: 1.25 }, look: 'y3k-chrome' },
+    { id: 'y3k-aura', name: 'Y3K 光晕', values: { fillMode: 'linear', fill: '#ffffff', fill2: '#cfc4ff', fillAngle: 90, strokeWidth: 0, stroke2Width: 0, fontFamily: 'Arial', fontWeight: 300, tracking: 6 }, look: 'y3k-aura' },
     { id: 'gradient', name: '霓虹渐变', values: { fillMode: 'linear', fill: '#20e3d1', fill2: '#ff4ca7', fillAngle: 0, strokeWidth: 0, stroke2Width: 0, fontFamily: 'Arial Black', fontWeight: 900 } },
   ];
 

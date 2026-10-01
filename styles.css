@@ -1021,8 +1021,14 @@ input:focus-visible,
   align-items: center;
   gap: 4px;
   min-width: 0;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
   white-space: nowrap;
+}
+
+.options-left::-webkit-scrollbar {
+  display: none;
 }
 
 .opt-title {
@@ -1943,6 +1949,12 @@ input[type="range"]::-moz-range-thumb {
   color: var(--faint);
   font-size: 10px;
   line-height: 1.5;
+}
+
+.fx-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
 }
 
 .add-fx {
@@ -2866,16 +2878,13 @@ body.no-doc .top-actions #exportButton {
   }
 }
 
-@media (max-width: 1040px) {
+@media (max-width: 1080px) {
   .main-grid {
-    grid-template-columns: 48px 0 minmax(320px, 1fr) 280px;
+    grid-template-columns: 48px 196px minmax(300px, 1fr) 268px;
   }
 
-  .left-panel {
-    display: none;
-  }
-
-  .status-pos {
+  .status-pos,
+  .save-state {
     display: none;
   }
 
@@ -2884,7 +2893,17 @@ body.no-doc .top-actions #exportButton {
   }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 880px) {
+  .main-grid {
+    grid-template-columns: 48px minmax(300px, 1fr) 268px;
+  }
+
+  .left-panel {
+    display: none;
+  }
+}
+
+@media (max-width: 680px) {
   .main-grid {
     grid-template-columns: 48px minmax(0, 1fr);
   }

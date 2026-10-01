@@ -1465,6 +1465,147 @@
     },
   });
 
+  register({
+    type: 'hud',
+    name: '科技 HUD',
+    cat: 'y3k',
+    size: [360, 360],
+    params: [
+      { key: 'style', label: '样式', type: 'select', options: [['reticle', '准星瞄准'], ['brackets', '角标取景框'], ['gauge', '仪表盘'], ['telemetry', '遥测数据']], def: 'reticle' },
+      { key: 'color', label: '颜色', type: 'color', def: '#20e3d1' },
+      { key: 'width', label: '线宽', type: 'range', min: 0.5, max: 8, step: 0.5, def: 1.5, unit: 'px' },
+      { key: 'label', label: '标签', type: 'text', def: 'TARGET_LOCK 03' },
+      { key: 'value', label: '数值', type: 'range', min: 0, max: 100, step: 1, def: 72, unit: '%' },
+      { key: 'ticks', label: '刻度', type: 'range', min: 8, max: 120, step: 1, def: 48 },
+      { key: 'glow', label: '发光', type: 'range', min: 0, max: 30, step: 1, def: 6, unit: 'px' },
+    ],
+    draw(ctx, w, h, p, env) {
+      const r = Math.min(w, h) / 2;
+      ctx.save();
+      ctx.strokeStyle = p.color;
+      ctx.fillStyle = p.color;
+      ctx.lineWidth = p.width;
+      ctx.shadowColor = p.color;
+      ctx.shadowBlur = p.glow;
+      ctx.lineCap = 'square';
+      const mono = (size, weight = 600) => font(size, weight, 'Courier New');
+      if (p.style === 'reticle') {
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 0.92, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([r * 0.05, r * 0.04]);
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 0.6, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        for (let i = 0; i < p.ticks; i += 1) {
+          const a = (i / p.ticks) * Math.PI * 2;
+          const long = i % 4 === 0;
+          ctx.beginPath();
+          ctx.moveTo(Math.cos(a) * r * 0.92, Math.sin(a) * r * 0.92);
+          ctx.lineTo(Math.cos(a) * r * (long ? 0.8 : 0.86), Math.sin(a) * r * (long ? 0.8 : 0.86));
+          ctx.stroke();
+        }
+        const gap = r * 0.12;
+        ctx.beginPath();
+        ctx.moveTo(-r, 0); ctx.lineTo(-gap, 0);
+        ctx.moveTo(gap, 0); ctx.lineTo(r, 0);
+        ctx.moveTo(0, -r); ctx.lineTo(0, -gap);
+        ctx.moveTo(0, gap); ctx.lineTo(0, r);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 0.025 + p.width, 0, Math.PI * 2);
+        ctx.fill();
+        const sweep = (p.value / 100) * Math.PI * 2;
+        ctx.lineWidth = p.width * 3;
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 0.7, -Math.PI / 2, -Math.PI / 2 + sweep);
+        ctx.stroke();
+        ctx.font = mono(r * 0.08);
+        ctx.textAlign = 'center';
+        ctx.fillText(p.label, 0, r * 0.38);
+        ctx.fillText(`${p.value}%`, 0, -r * 0.3);
+      } else if (p.style === 'brackets') {
+        const x = -w / 2 + p.width;
+        const y = -h / 2 + p.width;
+        const bw = w - p.width * 2;
+        const bh = h - p.width * 2;
+        const len = Math.min(bw, bh) * 0.16;
+        ctx.lineWidth = p.width * 2;
+        ctx.beginPath();
+        [[x, y, 1, 1], [x + bw, y, -1, 1], [x + bw, y + bh, -1, -1], [x, y + bh, 1, -1]].forEach(([cx, cy, sx, sy]) => {
+          ctx.moveTo(cx + sx * len, cy);
+          ctx.lineTo(cx, cy);
+          ctx.lineTo(cx, cy + sy * len);
+        });
+        ctx.stroke();
+        ctx.lineWidth = p.width;
+        ctx.beginPath();
+        ctx.moveTo(-len * 0.4, 0); ctx.lineTo(len * 0.4, 0);
+        ctx.moveTo(0, -len * 0.4); ctx.lineTo(0, len * 0.4);
+        ctx.stroke();
+        const size = Math.max(8, Math.min(bw, bh) * 0.05);
+        ctx.font = mono(size);
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        ctx.fillText(p.label, x + len * 0.3, y + len * 0.3);
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'bottom';
+        const random = U.rng(env.seed, env.layerId, 'coords');
+        ctx.fillText(`${(random() * 90).toFixed(4)}°N ${(random() * 180).toFixed(4)}°E`, x + bw - len * 0.3, y + bh - len * 0.3);
+        ctx.fillRect(x + len * 0.3, y + bh - len * 0.3 - size * 0.6, (bw * 0.3 * p.value) / 100, size * 0.5);
+      } else if (p.style === 'gauge') {
+        const start = Math.PI * 0.75;
+        const end = Math.PI * 2.25;
+        ctx.globalAlpha = 0.35;
+        ctx.lineWidth = r * 0.08;
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 0.78, start, end);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 0.78, start, start + (end - start) * (p.value / 100));
+        ctx.stroke();
+        ctx.lineWidth = p.width;
+        for (let i = 0; i <= p.ticks; i += 1) {
+          const a = start + ((end - start) * i) / p.ticks;
+          const long = i % 5 === 0;
+          ctx.beginPath();
+          ctx.moveTo(Math.cos(a) * r * 0.95, Math.sin(a) * r * 0.95);
+          ctx.lineTo(Math.cos(a) * r * (long ? 0.86 : 0.9), Math.sin(a) * r * (long ? 0.86 : 0.9));
+          ctx.stroke();
+        }
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.font = mono(r * 0.34, 700);
+        ctx.fillText(String(p.value), 0, -r * 0.02);
+        ctx.font = mono(r * 0.08);
+        ctx.fillText(p.label, 0, r * 0.3);
+      } else {
+        const random = U.rng(env.seed, env.layerId, 'telemetry', p.label);
+        const lines = Math.max(4, Math.round(h / Math.max(10, h * 0.075)));
+        const size = (h / lines) * 0.62;
+        ctx.font = mono(size);
+        ctx.textBaseline = 'middle';
+        ctx.textAlign = 'left';
+        ctx.fillRect(-w / 2, -h / 2, w, (h / lines) * 0.9);
+        ctx.save();
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.fillText(p.label, -w / 2 + size * 0.4, -h / 2 + (h / lines) * 0.45);
+        ctx.restore();
+        const keys = ['SYS', 'MEM', 'NET', 'GPU', 'VOID', 'CORE', 'SYNC', 'FLUX', 'NODE', 'LINK'];
+        for (let i = 1; i < lines; i += 1) {
+          const y = -h / 2 + (i + 0.5) * (h / lines);
+          const v = random();
+          const bars = Math.round(v * 8);
+          const text = `${keys[Math.floor(random() * keys.length)]}.${String(Math.floor(random() * 99)).padStart(2, '0')}  ${'▮'.repeat(bars)}${'▯'.repeat(8 - bars)}  ${(v * 100).toFixed(1)}%`;
+          ctx.fillText(text, -w / 2 + size * 0.4, y, w - size * 0.8);
+        }
+      }
+      ctx.restore();
+    },
+  });
+
   /* ---------- shared drawing helpers ---------- */
 
   function roundRect(ctx, x, y, w, h, r) {

@@ -69,6 +69,7 @@
 
   function renderTopbar() {
     const doc = state.doc;
+    document.title = doc && !state.homeOpen ? `${doc.name} — CHAOS.COLLAGE` : 'CHAOS.COLLAGE';
     if (dom.docName && document.activeElement !== dom.docName) dom.docName.value = doc ? doc.name : '';
     if (dom.docName) dom.docName.disabled = !doc;
     renderSaveStatus();
@@ -328,7 +329,7 @@
       const fxCount = (layer.effects || []).filter((effect) => effect.on).length;
       const repeat = Math.round(layer.repeater?.count || 1);
       const warped = CC.warp.isActive(layer.warp);
-      const styled = layer.style && (layer.style.shadow?.on || layer.style.glow?.on || layer.style.outline?.on);
+      const styled = layer.style && (layer.style.shadow?.on || layer.style.glow?.on || layer.style.outline?.on || layer.style.backdrop?.on);
       return `
         <div class="layer-row${selected.has(layer.id) ? ' active' : ''}${layer.visible ? '' : ' hidden-layer'}${layer.clip ? ' clipped' : ''}${layer.locked ? ' locked' : ''}" data-layer-id="${layer.id}" draggable="true">
           <button class="row-toggle" data-visibility-id="${layer.id}" title="${layer.visible ? '隐藏' : '显示'}">${ui.icon(layer.visible ? 'eye' : 'eyeOff')}</button>
@@ -596,6 +597,46 @@
     CC.generators.list().forEach((def) => {
       (byId[def.cat] || byId.pattern).items.push({ id: `gen-${def.type}`, name: def.name, make: (doc) => M.createGenerator(doc, def.type) });
     });
+    byId.y3k.items.push(
+      {
+        id: 'y3k-glass-card',
+        name: '毛玻璃卡片',
+        make: (doc) => {
+          const u = M.unit(doc);
+          const layer = M.createShape(doc, 'rect', { name: '毛玻璃卡片', fill: '#ffffff', fillMode: 'linear', fill2: '#d8e8ff', fillAngle: 120, stroke: '#ffffff', strokeWidth: 1.5 * u, radius: 32 * u, opacity: 0.32, w: 420 * u, h: 280 * u });
+          layer.style.backdrop = { on: true, blur: 28, saturate: 150, brightness: 108 };
+          layer.style.shadow = { ...layer.style.shadow, on: true, opacity: 0.25, blur: 40, distance: 18 };
+          return layer;
+        },
+      },
+      {
+        id: 'y3k-chrome-star',
+        name: '液态铬星芒',
+        make: (doc) => {
+          const layer = M.createVector(doc, 'sparkle4', { name: '液态铬星芒', fill: '#ffffff' });
+          layer.effects = CC.effects.lookEffects(CC.effects.LOOKS.find((look) => look.id === 'y3k-chrome'));
+          return layer;
+        },
+      },
+      {
+        id: 'y3k-chrome-heart',
+        name: '液态铬爱心',
+        make: (doc) => {
+          const layer = M.createVector(doc, 'heart', { name: '液态铬爱心', fill: '#ffffff', highlight: '#ffffff' });
+          layer.effects = [CC.effects.create('chrome', { env: 'rose', depth: 70, smooth: 14 })];
+          return layer;
+        },
+      },
+      {
+        id: 'y3k-chrome-sigil',
+        name: '铬金属图腾',
+        make: (doc) => {
+          const layer = M.createGenerator(doc, 'sigil', { name: '铬金属图腾' });
+          layer.effects = [CC.effects.create('chrome', { env: 'silver', depth: 80, smooth: 6 })];
+          return layer;
+        },
+      },
+    );
     return cats.filter((cat) => cat.items.length);
   }
 
@@ -893,7 +934,10 @@
     return `
       <div class="fx-stack">
         ${cards || '<p class="muted-note">任何图层都可以叠加效果，按从上到下的顺序执行。</p>'}
-        <button type="button" class="mini-button add-fx" data-insp-action="add-effect">${ui.icon('plus')}<span>添加效果</span></button>
+        <div class="fx-buttons">
+          <button type="button" class="mini-button add-fx" data-insp-action="add-effect">${ui.icon('plus')}<span>添加效果</span></button>
+          <button type="button" class="mini-button add-fx" data-insp-action="add-look">${ui.icon('gen')}<span>一键风格</span></button>
+        </div>
       </div>`;
   }
 
@@ -917,6 +961,15 @@
         ${ui.range('不透明度', 'style.glow.opacity', style.glow.opacity, 0, 1, 0.01)}
         ${ui.range('范围', 'style.glow.blur', style.glow.blur, 1, 160, 1, { unit: 'px' })}
         ${ui.range('强度', 'style.glow.strength', style.glow.strength, 1, 4, 1)}
+      </div>`);
+    }
+    parts.push(ui.checkbox('毛玻璃（模糊下方内容）', 'style.backdrop.on', style.backdrop.on));
+    if (style.backdrop.on) {
+      parts.push(`<div class="sub-controls">
+        ${ui.range('模糊', 'style.backdrop.blur', style.backdrop.blur, 0, 120, 1, { unit: 'px' })}
+        ${ui.range('饱和', 'style.backdrop.saturate', style.backdrop.saturate, 0, 300, 1, { unit: '%' })}
+        ${ui.range('亮度', 'style.backdrop.brightness', style.backdrop.brightness, 40, 200, 1, { unit: '%' })}
+        <p class="muted-note">配合较低的不透明度和浅色填充，就是 Y3K / 玻璃拟态卡片。</p>
       </div>`);
     }
     parts.push(ui.checkbox('贴纸描边', 'style.outline.on', style.outline.on));
@@ -1324,8 +1377,15 @@
     });
     el.addEventListener('keydown', (event) => {
       if (event.key === 'Enter' && event.target.matches('input.text-input, input.value-input')) event.target.blur();
-      if (event.key === 'Escape') event.target.blur?.();
-      event.stopPropagation();
+      if (event.key === 'Escape') {
+        event.target.blur?.();
+        event.stopPropagation();
+        return;
+      }
+      /* text entry keeps its keys; sliders keep arrows; everything else reaches the shortcuts */
+      const textEntry = event.target.matches('textarea, input[type="text"], input[type="number"], input:not([type])');
+      const sliderArrow = event.target.matches('input[type="range"]') && event.key.startsWith('Arrow');
+      if (textEntry || sliderArrow) event.stopPropagation();
     });
     el.addEventListener('click', (event) => {
       const seg = event.target.closest('[data-seg-path]');
@@ -1399,6 +1459,34 @@
     }).filter(Boolean);
   }
 
+  function lookMenuItems() {
+    const groups = [...new Set(CC.effects.LOOKS.map((look) => look.group))];
+    return groups.map((group) => ({
+      label: group,
+      submenu: CC.effects.LOOKS.filter((look) => look.group === group).map((look) => ({ label: look.name, action: () => applyLook(look) })),
+    })).concat([{ separator: true }, { label: '清空全部效果', icon: 'trash', action: () => clearEffects() }]);
+  }
+
+  function applyLook(look) {
+    const layers = App.selectedLayers();
+    if (!layers.length) return;
+    App.change(`一键风格：${look.name}`, () => {
+      layers.forEach((layer) => {
+        layer.effects = CC.effects.lookEffects(look);
+      });
+    });
+    openSections.set('effects', true);
+    renderInspector();
+  }
+
+  function clearEffects() {
+    const layers = App.selectedLayers();
+    if (!layers.length) return;
+    App.change('清空效果', () => layers.forEach((layer) => {
+      layer.effects = [];
+    }));
+  }
+
   function addEffectToSelection(type) {
     const layers = App.selectedLayers();
     if (!layers.length) return;
@@ -1420,6 +1508,11 @@
       case 'add-effect': {
         const rect = button.getBoundingClientRect();
         ui.openMenuAt({ left: rect.left, top: rect.bottom + 4, bottom: rect.top }, effectMenuItems(addEffectToSelection), { minWidth: rect.width });
+        break;
+      }
+      case 'add-look': {
+        const rect = button.getBoundingClientRect();
+        ui.openMenuAt({ left: rect.left, top: rect.bottom + 4, bottom: rect.top }, lookMenuItems(), { minWidth: rect.width });
         break;
       }
       case 'duplicate':
@@ -1479,6 +1572,7 @@
         if (!preset || !layer) return;
         App.change(`文字样式：${preset.name}`, () => {
           Object.assign(layer, preset.values);
+          if (preset.look) layer.effects = CC.effects.lookEffects(CC.effects.LOOKS.find((look) => look.id === preset.look));
           App.syncTextBox(layer, { anchor: true });
         });
         CC.fonts.ensureLoaded(layer.fontFamily, layer.fontWeight, layer.italic).then(() => App.refreshFonts());
@@ -1609,6 +1703,7 @@
     setupPanels,
     effectMenuItems,
     addEffectToSelection,
+    lookMenuItems,
     warpPresetItems,
     focusInspectorContent,
     openFontPickerFor,

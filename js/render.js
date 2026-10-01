@@ -61,6 +61,8 @@
     }
 
     function clear() {
+      for (const key of [...stageCache.keys()]) stageDiscard(key);
+      stageBytes = 0;
       for (const key of [...rasterCache.keys()]) discard(key);
       rasterBytes = 0;
       lastByLayer.clear();
@@ -735,6 +737,60 @@
       U.releaseCanvas(out);
     }
 
+    const stageCache = new Map();
+    let stageBytes = 0;
+    const STAGE_BUDGET = 96 * 1024 * 1024;
+
+    function stageGet(key) {
+      const canvas = stageCache.get(key);
+      if (!canvas) return null;
+      stageCache.delete(key);
+      stageCache.set(key, canvas);
+      return canvas;
+    }
+
+    function stageDiscard(key) {
+      const canvas = stageCache.get(key);
+      if (!canvas) return;
+      stageBytes -= canvas.width * canvas.height * 4;
+      stageCache.delete(key);
+      U.releaseCanvas(canvas);
+    }
+
+    function stageStore(key, canvas) {
+      const bytes = canvas.width * canvas.height * 4;
+      if (bytes > STAGE_BUDGET / 2) {
+        U.releaseCanvas(canvas);
+        return;
+      }
+      stageDiscard(key);
+      while (stageCache.size && (stageBytes + bytes > STAGE_BUDGET || stageCache.size >= 32)) stageDiscard(stageCache.keys().next().value);
+      stageCache.set(key, canvas);
+      stageBytes += bytes;
+    }
+
+    function stageKeysFor(layer, doc, effects, geometry) {
+      const {
+        x, y, rotation, opacity, blend, visible, locked, name, repeater, clip, flipX, flipY, style, effects: _effects, warp, ...rest
+      } = layer;
+      const deps = [];
+      effects.forEach((effect) => {
+        const def = CC.effects.get(effect.type);
+        (def.deps ? def.deps(effect.p) : []).forEach((depId) => {
+          const donor = doc.layers.find((candidate) => candidate.id === depId);
+          if (donor) deps.push(`${depId}:${donor.assetId}:${donor.fit}:${host.isAssetReady(donor.assetId) ? 1 : 0}`);
+        });
+      });
+      const prefix = `${layer.id}|${hashString(JSON.stringify(rest))}|${deps.join(',')}|${doc.seed}|${CC.text.epoch}|${geometry}`;
+      const keys = [];
+      let chain = '';
+      effects.forEach((effect) => {
+        chain += `${effect.type}:${JSON.stringify(effect.p)};`;
+        keys.push(`${prefix}|${hashString(chain)}`);
+      });
+      return keys;
+    }
+
     function buildRaster(layer, doc, q) {
       const started = performance.now();
       const effects = activeEffects(layer);
@@ -750,24 +806,41 @@
       const pad = Math.ceil(CC.effects.padFor(effects, scale) + (outline ? outline.width * scale + 2 : 0) + 2);
       const canvas = makeCanvas(W + pad * 2, H + pad * 2);
       const ctx = canvas.getContext('2d', { willReadFrequently: effects.length > 0 });
-      ctx.save();
-      ctx.translate(pad + W / 2, pad + H / 2);
-      ctx.scale(qx, qy);
-      const complete = drawContent(ctx, layer, doc, { q: scale, instanceIndex: 0 });
-      ctx.restore();
-      if (effects.length) {
-        CC.effects.applyStack(canvas, effects, {
-          q: scale,
-          seed: doc.seed,
-          layerId: layer.id,
-          fitRect,
-          getDonor: (sourceId) => {
-            const donor = doc.layers.find((candidate) => candidate.id === sourceId && candidate.id !== layer.id && candidate.type === 'image');
-            if (!donor) return null;
-            const image = host.getImage(donor.assetId);
-            return image ? { image, fit: donor.fit === 'stretch' ? 'cover' : donor.fit } : null;
-          },
-        });
+      /* stage cache: editing effect N reuses the cached output of effects 0..N-1 */
+      const stageKeys = effects.length ? stageKeysFor(layer, doc, effects, `${scale}|${W}x${H}|${pad}`) : [];
+      let start = 0;
+      let complete = true;
+      for (let i = stageKeys.length - 1; i >= 0; i -= 1) {
+        const cached = stageGet(stageKeys[i]);
+        if (cached) {
+          ctx.drawImage(cached, 0, 0);
+          start = i + 1;
+          break;
+        }
+      }
+      if (start === 0) {
+        ctx.save();
+        ctx.translate(pad + W / 2, pad + H / 2);
+        ctx.scale(qx, qy);
+        complete = drawContent(ctx, layer, doc, { q: scale, instanceIndex: 0 }) !== false;
+        ctx.restore();
+      }
+      const env = {
+        q: scale,
+        seed: doc.seed,
+        layerId: layer.id,
+        fitRect,
+        getDonor: (sourceId) => {
+          const donor = doc.layers.find((candidate) => candidate.id === sourceId && candidate.id !== layer.id && candidate.type === 'image');
+          if (!donor) return null;
+          const image = host.getImage(donor.assetId);
+          return image ? { image, fit: donor.fit === 'stretch' ? 'cover' : donor.fit } : null;
+        },
+      };
+      for (let i = start; i < effects.length; i += 1) {
+        const stageStarted = performance.now();
+        CC.effects.applyStack(canvas, [effects[i]], env);
+        if (complete && performance.now() - stageStarted > 6) stageStore(stageKeys[i], U.cloneCanvas(canvas));
       }
       if (outline && outline.width > 0) applyOutline(canvas, outline, scale);
       let result = { canvas, x: -(W / 2 + pad) / qx, y: -(H / 2 + pad) / qy, w: canvas.width / qx, h: canvas.height / qy };
@@ -777,7 +850,7 @@
         result = { canvas: warped.canvas, x: warped.ox / qx, y: warped.oy / qy, w: warped.canvas.width / qx, h: warped.canvas.height / qy };
       }
       result.bytes = result.canvas.width * result.canvas.height * 4;
-      result.complete = complete !== false;
+      result.complete = complete;
       result.boxW = layer.w;
       result.boxH = layer.h;
       buildTime.set(layer.id, performance.now() - started);
@@ -785,7 +858,7 @@
     }
 
     function qualityFor(layer, q, opts) {
-      if (opts.interactive && (buildTime.get(layer.id) || 0) > 45) return Math.max(0.25, q / 2);
+      if (opts.interactive && (buildTime.get(layer.id) || 0) > 45) return Math.max(0.125, q / 2);
       return q;
     }
 
@@ -836,6 +909,10 @@
     function compositeRaster(ctx, layer, raster, opts) {
       const style = layer.style || {};
       const ds = opts.deviceScale || 1;
+      if (opts.maskOnly) {
+        ctx.drawImage(raster.canvas, raster.x, raster.y, raster.w, raster.h);
+        return;
+      }
       if (style.glow?.on) {
         const glow = style.glow;
         const strength = clamp(Math.round(glow.strength || 1), 1, 4);
@@ -848,6 +925,37 @@
         drawShadowOnly(ctx, raster, U.rgba(shadow.color || '#000000', shadow.opacity ?? 0.5), (shadow.blur ?? 12) * ds, Math.cos(angle) * distance, Math.sin(angle) * distance);
       }
       ctx.drawImage(raster.canvas, raster.x, raster.y, raster.w, raster.h);
+    }
+
+    /* frosted glass: blur what is already on the target and keep it inside the layer's shape */
+    function drawBackdrop(ctx, layer, doc, opts, instanceIndex) {
+      const backdrop = layer.style.backdrop;
+      const target = ctx.canvas;
+      const transform = ctx.getTransform();
+      const ds = opts.deviceScale || 1;
+      const blurred = getTemp(3, target.width, target.height);
+      const bctx = blurred.getContext('2d');
+      bctx.setTransform(1, 0, 0, 1, 0, 0);
+      bctx.globalCompositeOperation = 'copy';
+      bctx.filter = `blur(${Math.max(0, backdrop.blur || 0) * ds}px) saturate(${backdrop.saturate ?? 100}%) brightness(${backdrop.brightness ?? 100}%)`;
+      bctx.drawImage(target, 0, 0);
+      bctx.filter = 'none';
+      const mask = getTemp(4, target.width, target.height);
+      const mctx = mask.getContext('2d');
+      mctx.setTransform(1, 0, 0, 1, 0, 0);
+      mctx.clearRect(0, 0, mask.width, mask.height);
+      mctx.setTransform(transform);
+      mctx.globalAlpha = 1;
+      drawLayerBody(mctx, layer, doc, { ...opts, maskOnly: true }, instanceIndex);
+      bctx.globalCompositeOperation = 'destination-in';
+      bctx.drawImage(mask, 0, 0);
+      bctx.globalCompositeOperation = 'source-over';
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.drawImage(blurred, 0, 0);
+      ctx.restore();
     }
 
     function drawLayerBody(ctx, layer, doc, opts, instanceIndex) {
@@ -883,6 +991,7 @@
         ctx.translate(layer.x + index * (repeat.dx || 0) + jitterX, layer.y + index * (repeat.dy || 0) + jitterY);
         ctx.rotate((((layer.rotation || 0) + index * (repeat.rotationStep || 0) + jitterRotation) * Math.PI) / 180);
         ctx.scale(scale * (layer.flipX ? -1 : 1), scale * (layer.flipY ? -1 : 1));
+        if (layer.style?.backdrop?.on && !opts.maskOnly) drawBackdrop(ctx, layer, doc, opts, index);
         drawLayerBody(ctx, layer, doc, opts, index);
         ctx.restore();
       }
