@@ -53,3 +53,7 @@
 - 请用户确认工程丢失时的打开方式：是否总用桌面快捷方式、电脑上是否同时有 Chrome 和 Edge、是否开启了「关闭时清除网站数据」。主页底部现在会显示当前工程库位置，便于对照。
 - 重要工程建议另存一次 `.chaos`，之后自动保存会顺带更新它（重启后按一次 Ctrl+S 重新授权）。
 - 可选：自动备份到用户选定的文件夹（File System Access 目录句柄），作为浏览器存储之外的第二份。
+
+## 追加：PR（2026-10-02）
+
+- 用户在 Claude Code 界面为本分支创建了 [LioraRndr/ChaosCollege#1](https://github.com/LioraRndr/ChaosCollege/pull/1)；后续推送到本分支会更新该 PR。交接与项目上下文已同步引用。

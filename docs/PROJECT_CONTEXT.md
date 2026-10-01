@@ -90,5 +90,5 @@ ChaosCollege/
 ## 版本管理
 
 - 远端 `https://github.com/LioraRndr/ChaosCollege`（私有）。`origin/main` 已包含 2026-10-01 产品化升级（截至 `43bbdd7`）。
-- 之后的改动在功能分支上进行（如 2026-10-01 夜间的 `claude/file-save-layers-menu-5k9g8u`），由用户决定是否合并到 main。
+- 之后的改动在功能分支上进行（如 2026-10-01 夜间的 `claude/file-save-layers-menu-5k9g8u`），通过 PR 合并到 main（如 [PR #1](https://github.com/LioraRndr/ChaosCollege/pull/1)）。
 - 仓库级 `core.autocrlf=false`，`.gitattributes` 为 `* -text`。
