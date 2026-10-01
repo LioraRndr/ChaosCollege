@@ -402,10 +402,11 @@
         {
           label: '创建',
           kind: 'primary',
-          onClick: async () => {
+          onClick: () => {
             const values = read();
             if (values.width < 16 || values.height < 16 || values.width > 16000 || values.height > 16000) return false;
-            await App.createProject(values);
+            /* close first so the editor is interactive while the first save runs */
+            setTimeout(() => App.createProject(values), 0);
             return true;
           },
         },

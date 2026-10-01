@@ -792,8 +792,13 @@
       input.setSelectionRange(caret, caret);
     });
     el.addEventListener('keydown', (event) => {
-      event.stopPropagation();
-      if (event.key === 'Escape') closeFlyout();
+      if (event.key === 'Escape') {
+        event.stopPropagation();
+        closeFlyout();
+        return;
+      }
+      /* typing in the search box must not trigger tool shortcuts */
+      if (event.target.matches('input')) event.stopPropagation();
     });
   }
 

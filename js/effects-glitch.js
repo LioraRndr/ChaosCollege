@@ -118,6 +118,7 @@
       { key: 'motion', label: '拖拽距离', type: 'range', min: 0, max: 260, step: 1, def: 120, unit: 'px' },
       { key: 'angle', label: '流向角', type: 'range', min: -180, max: 180, step: 1, def: 0, unit: '°' },
       { key: 'persistence', label: '卡帧累积', type: 'range', min: 0, max: 100, step: 1, def: 78, unit: '%' },
+      { key: 'trails', label: '透明处拖尾叠加', type: 'bool', def: true },
     ],
     presets: [{ label: '套用卡帧拖坏', values: { infection: 72, source: '', block: 14, motion: 120, angle: 0, persistence: 78 } }],
     deps: (p) => (p.source ? [p.source] : []),
@@ -235,6 +236,9 @@
       let next = buffers[1];
       /* each pass reads the last damaged frame, never the frame being written;
          narrow source strips stretch trapped texture into opaque, glued ribbons */
+      /* transparent layers (text, stickers) keep their shape and gain trails
+         unless trails are off; opaque images never clear, so they are unaffected */
+      const clearTiles = !opaqueFeedback && (p.trails === false || donorImage);
       for (let step = 0; step < steps; step += 1) {
         const nextCtx = next.context;
         nextCtx.globalAlpha = 1;
@@ -243,7 +247,7 @@
         nextCtx.drawImage(current, 0, 0);
         nextCtx.globalCompositeOperation = 'source-over';
         for (const tile of tiles) {
-          if (!opaqueFeedback) nextCtx.clearRect(tile.x, tile.y, tile.w, tile.h);
+          if (clearTiles) nextCtx.clearRect(tile.x, tile.y, tile.w, tile.h);
           nextCtx.drawImage(feedback.canvas, tile.sourceX, tile.sourceY, tile.sourceW, tile.sourceH, tile.x, tile.y, tile.w, tile.h);
         }
         [feedback, next] = [next, feedback];

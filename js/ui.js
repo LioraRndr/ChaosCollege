@@ -607,10 +607,18 @@
     const width = 300;
     el.style.width = `${width}px`;
     el.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - width - 8))}px`;
-    const height = Math.min(460, window.innerHeight - 24);
-    el.style.maxHeight = `${height}px`;
-    const below = window.innerHeight - rect.bottom - 8;
-    el.style.top = `${below >= Math.min(height, 360) ? rect.bottom + 4 : Math.max(8, rect.top - Math.min(height, el.offsetHeight) - 4)}px`;
+    const preferred = Math.min(460, window.innerHeight - 24);
+    const below = window.innerHeight - rect.bottom - 12;
+    const above = rect.top - 12;
+    if (below >= Math.min(preferred, 360) || below >= above) {
+      el.style.maxHeight = `${Math.min(preferred, below)}px`;
+      el.style.top = `${rect.bottom + 4}px`;
+    } else {
+      const height = Math.min(preferred, above);
+      el.style.maxHeight = `${height}px`;
+      el.style.top = `${rect.top - 4 - height}px`;
+      el.style.height = `${height}px`;
+    }
     const list = el.querySelector('[data-font-list]');
     const search = el.querySelector('[data-font-search]');
     const sample = extras.sample || '永 Aa 字体';

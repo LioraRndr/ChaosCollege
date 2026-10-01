@@ -33,6 +33,7 @@
     state.hover = null;
     App.renderToolrail?.();
     App.renderOptionsBar?.();
+    App.renderStatus?.();
     updateCursor();
     App.requestRender('overlay');
   }
@@ -206,7 +207,7 @@
 
   function onPointerDown(event) {
     if (!state.doc || state.homeOpen) return;
-    if (event.target === dom.textEditor) return;
+    if (event.target !== dom.art && event.target !== dom.viewport) return;
     ui.closeMenus();
     ui.closeFontPicker();
     const screen = App.eventToScreen(event);
@@ -851,13 +852,19 @@
       App.nudge(arrows[event.key][0] * amount, arrows[event.key][1] * amount);
       return;
     }
+    if (event.altKey) return;
     const tool = TOOLS.find((item) => item.key.toLowerCase() === key);
     if (tool) {
+      event.preventDefault();
       setTool(tool.id);
       return;
     }
-    if (key === 'g') App.toggleFlyout?.('generators');
-    if (key === 'e') App.toggleFlyout?.('elements');
+    /* preventDefault so the key is not typed into the flyout search that gets focus */
+    if (key === 'g' || key === 'e') {
+      event.preventDefault();
+      App.toggleFlyout?.(key === 'g' ? 'generators' : 'elements');
+      return;
+    }
     if (key === 'x') {
       const swap = state.opts.fg;
       state.opts.fg = state.opts.bg2;

@@ -91,7 +91,7 @@
     const rw = Math.round(w) / g;
     const rh = Math.round(h) / g;
     if (rw <= 32 && rh <= 32) return `${rw}:${rh}`;
-    return (w / h).toFixed(2);
+    return w >= h ? `${(w / h).toFixed(2)}:1` : `1:${(h / w).toFixed(2)}`;
   }
 
   /* ---------------- defaults ---------------- */

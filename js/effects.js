@@ -1130,7 +1130,7 @@
     cat: 'light',
     desc: '亮部向外溢光',
     params: [
-      { key: 'threshold', label: '阈值', type: 'range', min: 0, max: 255, step: 1, def: 150 },
+      { key: 'threshold', label: '阈值', type: 'range', min: 0, max: 255, step: 1, def: 110 },
       { key: 'radius', label: '半径', type: 'range', min: 1, max: 120, step: 1, def: 18, unit: 'px' },
       { key: 'strength', label: '强度', type: 'range', min: 0, max: 300, step: 1, def: 120, unit: '%' },
       { key: 'tint', label: '色调', type: 'color', def: '#ffffff' },

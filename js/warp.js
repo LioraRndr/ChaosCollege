@@ -143,45 +143,84 @@
     return inside;
   }
 
-  function drawTriangle(ctx, source, s0, s1, s2, d0, d1, d2) {
-    const delta = (s1[0] - s0[0]) * (s2[1] - s0[1]) - (s2[0] - s0[0]) * (s1[1] - s0[1]);
-    if (Math.abs(delta) < 1e-9) return;
-    const a = ((d1[0] - d0[0]) * (s2[1] - s0[1]) - (d2[0] - d0[0]) * (s1[1] - s0[1])) / delta;
-    const c = ((d2[0] - d0[0]) * (s1[0] - s0[0]) - (d1[0] - d0[0]) * (s2[0] - s0[0])) / delta;
-    const b = ((d1[1] - d0[1]) * (s2[1] - s0[1]) - (d2[1] - d0[1]) * (s1[1] - s0[1])) / delta;
-    const d = ((d2[1] - d0[1]) * (s1[0] - s0[0]) - (d1[1] - d0[1]) * (s2[0] - s0[0])) / delta;
-    const e = d0[0] - a * s0[0] - c * s0[1];
-    const f = d0[1] - b * s0[0] - d * s0[1];
-
-    /* grow the clip triangle by ~0.7px so neighbouring triangles overlap */
-    const cx = (d0[0] + d1[0] + d2[0]) / 3;
-    const cy = (d0[1] + d1[1] + d2[1]) / 3;
-    const grow = (point) => {
-      const dx = point[0] - cx;
-      const dy = point[1] - cy;
-      const len = Math.hypot(dx, dy) || 1;
-      return [point[0] + (dx / len) * 0.7, point[1] + (dy / len) * 0.7];
+  /* Software rasterizer: every output pixel inside a grid triangle samples the
+     source through that triangle's affine map with premultiplied bilinear
+     filtering. Pixels are assigned (not blended), so shared edges never show
+     seams and semi-transparent content keeps its exact alpha. */
+  function rasterizeGrid(source, src, dst, n, count, ox, oy, width, height) {
+    const sw = source.width;
+    const sh = source.height;
+    const sdata = source.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, sw, sh).data;
+    const output = new ImageData(width, height);
+    const out = output.data;
+    const sample = (sx, sy, index) => {
+      const x = sx - 0.5;
+      const y = sy - 0.5;
+      const x0 = Math.floor(x);
+      const y0 = Math.floor(y);
+      const fx = x - x0;
+      const fy = y - y0;
+      let r = 0;
+      let g = 0;
+      let b = 0;
+      let a = 0;
+      for (let k = 0; k < 4; k += 1) {
+        const px = x0 + (k & 1);
+        const py = y0 + (k >> 1);
+        if (px < 0 || py < 0 || px >= sw || py >= sh) continue;
+        const weight = ((k & 1) ? fx : 1 - fx) * ((k >> 1) ? fy : 1 - fy);
+        if (weight <= 0) continue;
+        const i = (py * sw + px) * 4;
+        const alpha = sdata[i + 3] * weight;
+        r += sdata[i] * alpha;
+        g += sdata[i + 1] * alpha;
+        b += sdata[i + 2] * alpha;
+        a += alpha;
+      }
+      if (a <= 0.001) return;
+      out[index] = r / a;
+      out[index + 1] = g / a;
+      out[index + 2] = b / a;
+      out[index + 3] = a;
     };
-    const g0 = grow(d0);
-    const g1 = grow(d1);
-    const g2 = grow(d2);
-
-    const minX = clamp(Math.floor(Math.min(s0[0], s1[0], s2[0])) - 2, 0, source.width);
-    const minY = clamp(Math.floor(Math.min(s0[1], s1[1], s2[1])) - 2, 0, source.height);
-    const maxX = clamp(Math.ceil(Math.max(s0[0], s1[0], s2[0])) + 2, 0, source.width);
-    const maxY = clamp(Math.ceil(Math.max(s0[1], s1[1], s2[1])) + 2, 0, source.height);
-    if (maxX - minX < 1 || maxY - minY < 1) return;
-
-    ctx.save();
-    ctx.beginPath();
-    ctx.moveTo(g0[0], g0[1]);
-    ctx.lineTo(g1[0], g1[1]);
-    ctx.lineTo(g2[0], g2[1]);
-    ctx.closePath();
-    ctx.clip();
-    ctx.setTransform(a, b, c, d, e, f);
-    ctx.drawImage(source, minX, minY, maxX - minX, maxY - minY, minX, minY, maxX - minX, maxY - minY);
-    ctx.restore();
+    const triangle = (s0, s1, s2, d0, d1, d2) => {
+      const x0 = d0[0] - ox;
+      const y0 = d0[1] - oy;
+      const x1 = d1[0] - ox;
+      const y1 = d1[1] - oy;
+      const x2 = d2[0] - ox;
+      const y2 = d2[1] - oy;
+      const area = (x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0);
+      if (Math.abs(area) < 1e-6) return;
+      const minX = Math.max(0, Math.floor(Math.min(x0, x1, x2)));
+      const maxX = Math.min(width - 1, Math.ceil(Math.max(x0, x1, x2)));
+      const minY = Math.max(0, Math.floor(Math.min(y0, y1, y2)));
+      const maxY = Math.min(height - 1, Math.ceil(Math.max(y0, y1, y2)));
+      const inv = 1 / area;
+      const eps = -1e-4;
+      for (let py = minY; py <= maxY; py += 1) {
+        const cy = py + 0.5;
+        for (let px = minX; px <= maxX; px += 1) {
+          const cx = px + 0.5;
+          const l1 = ((cx - x0) * (y2 - y0) - (x2 - x0) * (cy - y0)) * inv;
+          const l2 = ((x1 - x0) * (cy - y0) - (cx - x0) * (y1 - y0)) * inv;
+          const l0 = 1 - l1 - l2;
+          if (l0 < eps || l1 < eps || l2 < eps) continue;
+          sample(s0[0] * l0 + s1[0] * l1 + s2[0] * l2, s0[1] * l0 + s1[1] * l1 + s2[1] * l2, (py * width + px) * 4);
+        }
+      }
+    };
+    for (let row = 0; row < n; row += 1) {
+      for (let col = 0; col < n; col += 1) {
+        const i00 = row * count + col;
+        const i10 = i00 + 1;
+        const i01 = i00 + count;
+        const i11 = i01 + 1;
+        triangle(src[i00], src[i10], src[i11], dst[i00], dst[i10], dst[i11]);
+        triangle(src[i00], src[i11], src[i01], dst[i00], dst[i11], dst[i01]);
+      }
+    }
+    return output;
   }
 
   /* Warp a raster whose normalized box occupies box = {x, y, w, h} (source px).
@@ -224,23 +263,10 @@
     maxY = Math.min(maxY, limit);
     const ox = Math.floor(minX) - 2;
     const oy = Math.floor(minY) - 2;
-    const width = Math.min(8192, Math.ceil(maxX) - ox + 2);
-    const height = Math.min(8192, Math.ceil(maxY) - oy + 2);
+    const width = Math.max(1, Math.min(8192, Math.ceil(maxX) - ox + 2));
+    const height = Math.max(1, Math.min(8192, Math.ceil(maxY) - oy + 2));
     const canvas = makeCanvas(width, height);
-    const ctx = canvas.getContext('2d');
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
-    const at = (index) => [dst[index][0] - ox, dst[index][1] - oy];
-    for (let row = 0; row < n; row += 1) {
-      for (let col = 0; col < n; col += 1) {
-        const i00 = row * count + col;
-        const i10 = i00 + 1;
-        const i01 = i00 + count;
-        const i11 = i01 + 1;
-        drawTriangle(ctx, source, src[i00], src[i10], src[i11], at(i00), at(i10), at(i11));
-        drawTriangle(ctx, source, src[i00], src[i11], src[i01], at(i00), at(i11), at(i01));
-      }
-    }
+    canvas.getContext('2d').putImageData(rasterizeGrid(source, src, dst, n, count, ox, oy, width, height), 0, 0);
     return { canvas, ox, oy };
   }
 

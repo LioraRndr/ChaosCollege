@@ -1051,14 +1051,21 @@
     type: 'terrain',
     name: '蒸汽波地形',
     cat: 'space',
-    size: [640, 360],
+    size: [640, 400],
     params: [
-      { key: 'cols', label: '横向网格', type: 'range', min: 8, max: 80, step: 1, def: 36 },
-      { key: 'rows', label: '纵深网格', type: 'range', min: 6, max: 60, step: 1, def: 26 },
-      { key: 'height', label: '山高', type: 'range', min: 0, max: 100, step: 1, def: 55, unit: '%' },
+      { key: 'cols', label: '横向网格', type: 'range', min: 8, max: 80, step: 1, def: 34 },
+      { key: 'rows', label: '纵深网格', type: 'range', min: 6, max: 60, step: 1, def: 28 },
+      { key: 'height', label: '山高', type: 'range', min: 0, max: 100, step: 1, def: 70, unit: '%' },
       { key: 'valley', label: '中央峡谷', type: 'range', min: 0, max: 100, step: 1, def: 60, unit: '%' },
+      { key: 'horizon', label: '地平线', type: 'range', min: 5, max: 80, step: 1, def: 42, unit: '%' },
       { key: 'color', label: '线色', type: 'color', def: '#ff4ca7' },
-      { key: 'bg', label: '遮挡色', type: 'color', def: '#120024' },
+      { key: 'bg', label: '地面色', type: 'color', def: '#120024' },
+      { key: 'sky', label: '天空', type: 'bool', def: true },
+      { key: 'skyTop', label: '天空顶色', type: 'color', def: '#1a0638', when: (p) => p.sky },
+      { key: 'skyBottom', label: '天空底色', type: 'color', def: '#ff4ca7', when: (p) => p.sky },
+      { key: 'sun', label: '条纹夕阳', type: 'bool', def: true },
+      { key: 'sunTop', label: '夕阳顶色', type: 'color', def: '#ffd400', when: (p) => p.sun },
+      { key: 'sunBottom', label: '夕阳底色', type: 'color', def: '#ff4ca7', when: (p) => p.sun },
       { key: 'glow', label: '发光', type: 'range', min: 0, max: 30, step: 1, def: 6, unit: 'px' },
       { key: 'salt', label: '地形', type: 'range', min: 0, max: 999, step: 1, def: 21 },
     ],
@@ -1066,24 +1073,59 @@
       const noise = U.makeNoise2D((env.seed ^ U.hashString(`terrain${p.salt}`)) >>> 0);
       const cols = Math.round(p.cols);
       const rows = Math.round(p.rows);
-      const horizon = -h / 2 + h * 0.12;
-      const project = (x, y, z) => {
-        const k = 1 / z;
-        return [x * k * w * 0.5, horizon + (0.55 - y) * k * h * 0.5];
-      };
+      const x0 = -w / 2;
+      const y0 = -h / 2;
+      const horizon = y0 + h * (p.horizon / 100);
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(x0, y0, w, h);
+      ctx.clip();
+      if (p.sky) {
+        const g = ctx.createLinearGradient(0, y0, 0, horizon);
+        g.addColorStop(0, p.skyTop);
+        g.addColorStop(1, p.skyBottom);
+        ctx.fillStyle = g;
+        ctx.fillRect(x0, y0, w, horizon - y0 + 1);
+      }
+      if (p.sun) {
+        const r = Math.min(w * 0.22, (horizon - y0) * 0.95);
+        const cy = horizon - r * 0.35;
+        const g = ctx.createLinearGradient(0, cy - r, 0, cy + r);
+        g.addColorStop(0, p.sunTop);
+        g.addColorStop(1, p.sunBottom);
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(0, cy, r, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.fillStyle = g;
+        ctx.fillRect(-r, cy - r, r * 2, r * 2);
+        /* classic sliced sun: bands get thicker toward the horizon */
+        ctx.globalCompositeOperation = 'destination-out';
+        for (let i = 0; i < 7; i += 1) {
+          const t = i / 7;
+          const bandY = cy + r * (0.05 + t * 0.95);
+          ctx.fillRect(-r, bandY, r * 2, r * (0.025 + t * 0.07));
+        }
+        ctx.restore();
+      }
+      ctx.fillStyle = p.bg;
+      ctx.fillRect(x0, horizon, w, h - (horizon - y0));
+      const span = h - (horizon - y0);
+      const project = (x, y, z) => [x * (w * 0.5) / z, horizon + ((0.9 - y) / z) * span * 0.32];
       const heightAt = (x, z) => {
-        const valley = 1 - Math.exp(-(x * x) / (0.08 + (1 - p.valley / 100) * 2));
-        return U.fbm(noise, x * 1.6 + 10, z * 0.9, 4) * valley * (p.height / 100) * 0.9;
+        const valley = 1 - Math.exp(-(x * x) / (0.06 + (1 - p.valley / 100) * 2));
+        return U.fbm(noise, x * 1.6 + 10, z * 0.9, 4) * valley * (p.height / 100) * 2.2;
       };
-      const zNear = 0.6;
-      const zFar = 7;
+      const zNear = 0.26;
+      const zFar = 9;
       const grid = [];
       for (let j = 0; j <= rows; j += 1) {
-        const z = zFar - (j / rows) * (zFar - zNear);
+        const t = j / rows;
+        const z = zFar * Math.pow(zNear / zFar, t);
         const row = [];
         for (let i = 0; i <= cols; i += 1) {
-          const x = (i / cols - 0.5) * 2 * z * 0.9;
-          row.push(project(x, heightAt(x / z, z), z));
+          const xs = (i / cols - 0.5) * 2.6;
+          row.push(project(xs * z, heightAt(xs, z), z));
         }
         grid.push(row);
       }
@@ -1109,6 +1151,7 @@
         }
       }
       ctx.shadowBlur = 0;
+      ctx.restore();
     },
   });
 
@@ -1296,9 +1339,9 @@
     cat: 'y3k',
     size: [420, 420],
     params: [
-      { key: 'count', label: '液滴数', type: 'range', min: 1, max: 12, step: 1, def: 5 },
-      { key: 'size', label: '液滴大小', type: 'range', min: 10, max: 100, step: 1, def: 55, unit: '%' },
-      { key: 'merge', label: '融合', type: 'range', min: 0, max: 100, step: 1, def: 55, unit: '%' },
+      { key: 'count', label: '液滴数', type: 'range', min: 1, max: 12, step: 1, def: 6 },
+      { key: 'size', label: '液滴大小', type: 'range', min: 10, max: 100, step: 1, def: 38, unit: '%' },
+      { key: 'merge', label: '融合', type: 'range', min: 0, max: 100, step: 1, def: 45, unit: '%' },
       { key: 'env', label: '金属', type: 'select', options: [['silver', '银'], ['gold', '金'], ['ice', '冰蓝'], ['black', '黑铬'], ['rainbow', '彩虹铬'], ['acid', '酸性铬'], ['rose', '玫瑰铬']], def: 'silver' },
       { key: 'salt', label: '形态', type: 'range', min: 0, max: 999, step: 1, def: 9 },
     ],
@@ -1334,11 +1377,12 @@
             const j = y * W + x;
             const v = field[j];
             if (v < 0.8) continue;
-            const height = (k) => Math.sqrt(clamp((k - 1) * 1.2, 0, 1));
+            /* rounded relief that keeps curving toward blob centers (no flat plateau) */
+            const height = (k) => (k <= 1 ? 0 : Math.sqrt(1 - Math.pow(1 / k, 1.6)));
             const hc = height(v);
             const gx = height(field[y * W + Math.min(W - 1, x + 1)]) - height(field[y * W + Math.max(0, x - 1)]);
             const gy = height(field[Math.min(H - 1, y + 1) * W + x]) - height(field[Math.max(0, y - 1) * W + x]);
-            const depth = Math.min(W, H) * 0.035;
+            const depth = Math.min(W, H) * 0.06;
             const len = Math.hypot(gx * depth, gy * depth, 1);
             const ny = -(gy * depth) / len;
             const nx = -(gx * depth) / len;
@@ -1364,9 +1408,9 @@
     cat: 'y3k',
     size: [260, 420],
     params: [
-      { key: 'spikes', label: '棘刺数', type: 'range', min: 2, max: 16, step: 1, def: 7 },
-      { key: 'curl', label: '卷曲', type: 'range', min: 0, max: 100, step: 1, def: 60, unit: '%' },
-      { key: 'thickness', label: '粗细', type: 'range', min: 10, max: 200, step: 1, def: 60, unit: '%' },
+      { key: 'spikes', label: '棘刺数', type: 'range', min: 2, max: 24, step: 1, def: 11 },
+      { key: 'curl', label: '卷曲', type: 'range', min: 0, max: 100, step: 1, def: 75, unit: '%' },
+      { key: 'thickness', label: '粗细', type: 'range', min: 10, max: 200, step: 1, def: 90, unit: '%' },
       { key: 'color', label: '颜色', type: 'color', def: '#111111' },
       { key: 'salt', label: '形态', type: 'range', min: 0, max: 999, step: 1, def: 13 },
     ],

@@ -32,7 +32,8 @@
       g.addColorStop(1, c2);
       return g;
     }
-    const angle = (((spec.angle ?? 90) - 90) * Math.PI) / 180;
+    /* angle in degrees from the +x axis: 0 = left → right, 90 = top → bottom */
+    const angle = ((spec.angle ?? 90) * Math.PI) / 180;
     const half = (Math.abs(w * Math.cos(angle)) + Math.abs(h * Math.sin(angle))) / 2 || 1;
     const dx = Math.cos(angle) * half;
     const dy = Math.sin(angle) * half;

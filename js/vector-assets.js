@@ -286,7 +286,7 @@
     { id: 'bolt', name: '闪电', cat: 'y2k', vb: [100, 100], parts: [{ d: 'M58 0L16 56H46L34 100L84 38H54L68 0Z', role: 'a' }] },
     { id: 'flame', name: '火焰', cat: 'y2k', vb: [100, 120], parts: [{ d: 'M50 0C58 22 86 38 86 74C86 100 70 118 50 118C30 118 14 100 14 76C14 56 26 46 32 34C34 48 40 54 46 56C42 36 44 16 50 0Z', role: 'a' }, { d: 'M50 56C56 70 70 78 70 94C70 108 61 116 50 116C39 116 30 108 30 96C30 84 38 78 42 70C44 78 48 80 52 80C50 72 49 64 50 56Z', role: 'b' }] },
     { id: 'bow', name: '蝴蝶结', cat: 'y2k', vb: [120, 100], parts: [{ d: 'M60 42C44 20 14 8 6 22C-2 38 10 62 30 62C44 62 54 52 60 46ZM60 42C76 20 106 8 114 22C122 38 110 62 90 62C76 62 66 52 60 46ZM54 48C46 66 34 84 26 96L40 92L46 100C52 82 56 66 60 54ZM66 48C74 66 86 84 94 96L80 92L74 100C68 82 64 66 60 54Z', role: 'a' }, { d: rect(52, 36, 16, 20, 7), role: 'b' }] },
-    { id: 'butterfly', name: '蝴蝶', cat: 'y2k', vb: [100, 100], parts: [{ d: butterflyPath(), role: 'a', evenodd: true }] },
+    { id: 'butterfly', name: '蝴蝶', cat: 'y2k', vb: [100, 100], parts: [{ d: butterflyPath(), role: 'a' }] },
     { id: 'wing', name: '天使翅膀', cat: 'y2k', vb: [110, 100], parts: [{ d: wingPath(), role: 'a' }] },
     { id: 'crown', name: '皇冠', cat: 'y2k', vb: [100, 90], parts: [{ d: 'M6 70L10 18L32 44L50 8L68 44L90 18L94 70Z', role: 'a' }, { d: rect(6, 72, 88, 14, 3), role: 'b' }, { d: circle(50, 8, 6) + circle(10, 18, 5) + circle(90, 18, 5), role: 'b' }] },
     { id: 'cherry', name: '樱桃', cat: 'y2k', vb: [100, 100], parts: [{ d: 'M30 62C40 40 52 20 70 6M70 6C66 30 70 50 74 64', role: 'ink', stroke: 4 }, { d: circle(28, 74, 20) + circle(72, 78, 20), role: 'a' }, { d: ellipse(22, 66, 5, 3, -0.7) + ellipse(66, 70, 5, 3, -0.7), role: 'hi' }] },

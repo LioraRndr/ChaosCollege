@@ -1268,8 +1268,8 @@ input:focus-visible,
 .flyout {
   position: absolute;
   left: 0;
-  top: 0;
-  bottom: 0;
+  top: 40px;
+  bottom: 28px;
   z-index: 8;
   width: 318px;
   display: grid;
@@ -1636,8 +1636,14 @@ input[type="range"]::-moz-range-thumb {
   text-align: right;
 }
 
-.value-input::-webkit-inner-spin-button {
-  opacity: 0.4;
+.value-input::-webkit-inner-spin-button,
+.value-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.value-input[type="number"] {
+  -moz-appearance: textfield;
 }
 
 .text-input {
