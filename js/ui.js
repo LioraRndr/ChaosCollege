@@ -135,6 +135,8 @@
     const el = document.createElement('div');
     el.className = 'menu';
     el.setAttribute('role', 'menu');
+    /* only the row whose submenu is showing keeps the highlight */
+    const clearOpen = () => el.querySelectorAll('.menu-item.open').forEach((row) => row.classList.remove('open'));
     items.forEach((item) => {
       if (item.separator) {
         const sep = document.createElement('div');
@@ -161,6 +163,7 @@
       if (item.submenu) {
         const open = () => {
           closeMenus(depth + 1);
+          clearOpen();
           const rect = button.getBoundingClientRect();
           openMenuAt({ left: rect.right - 2, top: rect.top - 4, right: rect.left + 2 }, item.submenu, { depth: depth + 1, side: true });
           button.classList.add('open');
@@ -175,7 +178,10 @@
           }
         });
       } else {
-        button.addEventListener('mouseenter', () => closeMenus(depth + 1));
+        button.addEventListener('mouseenter', () => {
+          closeMenus(depth + 1);
+          clearOpen();
+        });
         button.addEventListener('click', () => {
           if (item.disabled) return;
           closeMenus(0);

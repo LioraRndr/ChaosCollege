@@ -11,7 +11,7 @@
 补充资料：
 
 - **调研**：[`research/y3k.md`](research/y3k.md) — Y3K 风格调研、来源与功能对照。
-- **验证证据**：[`experiments/`](experiments/) — 每次重要改动的测试脚本、基准与截图，例如 [`editor-upgrade-2026-10-01`](experiments/editor-upgrade-2026-10-01/README.md)。
+- **验证证据**：[`experiments/`](experiments/) — 每次重要改动的测试脚本、基准与截图，例如 [`editor-upgrade-2026-10-01`](experiments/editor-upgrade-2026-10-01/README.md)、[`save-pick-menu-2026-10-01`](experiments/save-pick-menu-2026-10-01/README.md)。
 
 ## 维护原则
 
