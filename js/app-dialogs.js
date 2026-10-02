@@ -54,13 +54,14 @@
       <div class="home-inner">
         <header class="home-head">
           <div class="home-brand">
-            <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><rect x="5" y="10" width="15.5" height="17.5" rx="3" fill="none" stroke="#8b8b93" stroke-width="1.7"/><rect x="11.5" y="4.5" width="15.5" height="17.5" rx="3" fill="#d7ff2f" transform="rotate(8 19.25 13.25)"/></svg>
+            <img class="brand-mark" src="assets/logo-mark.svg" alt="" width="36" height="36">
             <div><strong>CHAOS.COLLAGE</strong><small>工程主页</small></div>
           </div>
           <div class="home-actions">
             <button class="ui-button primary" data-home-action="new">${ui.icon('plus')}<span>新建工程…</span></button>
             <button class="ui-button" data-home-action="open">${ui.icon('folder')}<span>打开工程文件…</span></button>
             ${current ? `<button class="ui-button" data-home-action="back">${ui.icon('close')}<span>返回编辑</span></button>` : ''}
+            ${accountButton()}
           </div>
         </header>
         <section class="home-section">
@@ -100,21 +101,35 @@
           </div>
         </section>
         <footer class="home-foot">
-          <span>${CC.storage.isPersistent() ? '工程自动保存在本机浏览器（IndexedDB），不会上传。' : '当前浏览器无法使用 IndexedDB，工程只保存在内存中，请及时另存工程文件。'}</span>
+          <span>${storageSummary()}</span>
           <span title="换浏览器或换打开方式（直接打开 / 本地服务器）会看到另一个独立的工程库">工程库位置：${escapeHtml(storageLocation())}</span>
-          <span>${estimate ? `已用 ${U.formatBytes(estimate.usage)} / 可用约 ${U.formatBytes(estimate.quota)}` : ''}${persisted ? ' · 已启用持久存储' : ` · <button class="link-button" data-home-action="persist">申请持久存储</button>`}</span>
+          <span>${estimate ? `已用 ${U.formatBytes(estimate.usage)} / ${cloudOn() ? '' : '可用约 '}${U.formatBytes(estimate.quota)}` : ''}${cloudOn() ? '' : persisted ? ' · 已启用持久存储' : ` · <button class="link-button" data-home-action="persist">申请持久存储</button>`}</span>
           <button class="link-button" data-home-action="about">数据存储说明</button>
         </footer>
       </div>`;
     el.querySelectorAll('[data-thumb-id]').forEach((img) => {
       const project = projects.find((item) => item.id === img.dataset.thumbId);
-      if (project?.thumb) {
+      if (typeof project?.thumb === 'string') img.src = project.thumb;
+      else if (project?.thumb) {
         const url = URL.createObjectURL(project.thumb);
         thumbUrls.set(project.id, url);
         img.src = url;
       }
     });
     ui.enhanceSelects(el);
+  }
+
+  const cloudOn = () => !!CC.cloud?.isEnabled();
+
+  function storageSummary() {
+    if (cloudOn()) return `工程自动保存在云端账号「${escapeHtml(CC.cloud.user()?.username || '')}」，可在任何设备登录使用；「另存为工程文件」可下载到本地。`;
+    if (CC.cloud?.config()) return '本机试用模式：工程只存在这个浏览器里。<button class="link-button" data-home-action="login">登录 / 注册</button>后保存到云端（试用中的工程可另存为文件再打开导入）。';
+    return CC.storage.isPersistent() ? '工程自动保存在本机浏览器（IndexedDB），不会上传。' : '当前浏览器无法使用 IndexedDB，工程只保存在内存中，请及时另存工程文件。';
+  }
+
+  function accountButton() {
+    if (!cloudOn()) return '';
+    return `<button class="ui-button" data-home-action="account" data-menu-trigger>${ui.icon('user')}<span>${escapeHtml(CC.cloud.user()?.username || '账号')}</span></button>`;
   }
 
   /* The library belongs to one browser profile and one origin; showing both
@@ -125,6 +140,7 @@
     const browser = brands.find((name) => /Edge/.test(name)) ? 'Edge'
       : brands.find((name) => /Chrome/.test(name)) ? 'Chrome'
         : /Edg\//.test(ua) ? 'Edge' : /Chrome\//.test(ua) ? 'Chrome' : /Firefox\//.test(ua) ? 'Firefox' : /Safari\//.test(ua) ? 'Safari' : '浏览器';
+    if (cloudOn()) return `云端 · ${location.host}`;
     const origin = location.protocol === 'file:' ? '直接打开的本地文件 (file://)' : location.origin;
     return `${browser} · ${origin}`;
   }
@@ -180,6 +196,15 @@
       }
       if (action === 'about') {
         openAboutDialog();
+        return;
+      }
+      if (action === 'account') {
+        const rect = event.target.closest('[data-home-action]').getBoundingClientRect();
+        ui.openMenuAt({ left: rect.left, top: rect.bottom + 4, bottom: rect.top }, CC.cloud.accountMenuItems(), { minWidth: 200 });
+        return;
+      }
+      if (action === 'login') {
+        location.reload();
         return;
       }
       if (action === 'persist') {
@@ -750,12 +775,12 @@
     if (state.fileHandle) {
       try {
         await writeHandle(state.fileHandle, await buildCurrentFile());
-        ui.toast(`已保存到工程库，并写入 ${state.fileHandle.name}`);
+        ui.toast(`已保存到${cloudOn() ? '云端' : '工程库'}，并写入 ${state.fileHandle.name}`);
       } catch (error) {
-        ui.toast(`已保存到工程库；写入文件失败：${error.message || error}`, 'error');
+        ui.toast(`已保存到${cloudOn() ? '云端' : '工程库'}；写入文件失败：${error.message || error}`, 'error');
       }
     } else {
-      ui.toast('已保存到本机工程库（Ctrl+Shift+S 可另存为 .chaos 工程文件）');
+      ui.toast(state.saveStatus === 'error' ? '保存失败，正在重试' : `已保存到${cloudOn() ? '云端' : '本机工程库'}（Ctrl+Shift+S 可另存为 .chaos 工程文件到本地）`);
     }
   }
 
@@ -836,8 +861,9 @@
       } else await CC.storage.deleteProject(existing.id);
     }
     if (state.doc) await App.saveProject();
+    /* project first: the cloud store only accepts assets of an existing project */
+    await CC.storage.putProject({ id: target.id, name: target.name, width: target.width, height: target.height, createdAt: target.createdAt, updatedAt: Date.now(), doc: target, thumb: null, fileName: file.name, force: true });
     for (const asset of assets) await CC.storage.putAsset(target.id, asset);
-    await CC.storage.putProject({ id: target.id, name: target.name, width: target.width, height: target.height, createdAt: target.createdAt, updatedAt: Date.now(), doc: target, thumb: null, fileName: file.name });
     if (handle) await CC.storage.setHandle(target.id, handle);
     await App.openProject(target.id);
     if (handle) state.fileHandle = handle;
@@ -939,7 +965,14 @@
     ui.openDialog({
       title: '数据存储说明',
       width: 520,
-      body: `
+      body: cloudOn() ? `
+        <div class="about-text">
+          <p><strong>云端工程库</strong>：工程、图片、缩略图和导入字体自动保存到本站服务器上你的账号「${escapeHtml(CC.cloud.user()?.username || '')}」下，换电脑或浏览器登录同一账号即可继续编辑。每次改动约 1 秒后保存；断网时会保留改动并自动重试。</p>
+          <p><strong>保存到本地</strong>：「文件 → 另存为工程文件」把工程下载为 .chaos 文件（单个 JSON，内含图片和用到的导入字体），可随时用「打开工程文件」导入回来；「导出图片」输出 PNG / JPG / WEBP。</p>
+          <p><strong>多处同时编辑</strong>：同一工程在两个窗口或设备上同时修改时，后保存的一方会收到提示，可选择加载云端版本或用当前窗口覆盖。</p>
+          <p><strong>空间</strong>：每个账号有空间上限，用量显示在工程主页底部；删除工程会同时删除其中的图片。</p>
+          <p><strong>账号</strong>：本站不收集邮箱。忘记密码请联系站点管理员重置；注销账号会永久删除云端的全部数据。</p>
+        </div>` : `
         <div class="about-text">
           <p><strong>工程库</strong>：所有工程、图片和导入字体都自动保存在当前浏览器配置文件的 IndexedDB 中，不上传任何服务器。</p>
           <p><strong>不同打开方式是不同的库</strong>：直接打开 index.html（file://）与通过本地服务器（http://127.0.0.1:8080）打开时，浏览器把它们视为不同来源，工程库互不可见；Chrome 与 Edge、同一浏览器的不同用户 / 无痕窗口也各有一个库。桌面快捷方式使用 Chrome（没有时用 Edge）的 file:// 方式。当前位置：${escapeHtml(storageLocation())}。</p>
@@ -1030,6 +1063,7 @@
         { label: '快速导出 PNG', shortcut: 'Ctrl+Shift+E', disabled: !hasDoc, action: () => quickExport() },
         { separator: true },
         { label: '关闭工程', disabled: !hasDoc, action: () => App.closeProject() },
+        ...(cloudOn() ? [{ separator: true }, { label: '账号', icon: 'user', submenu: CC.cloud.accountMenuItems() }] : []),
       ],
       edit: [
         { label: '撤销', icon: 'undo', shortcut: 'Ctrl+Z', disabled: !state.history.length, action: () => App.undo() },

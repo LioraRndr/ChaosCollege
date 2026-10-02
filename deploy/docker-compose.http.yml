@@ -1,0 +1,25 @@
+# No domain yet: serve plain HTTP on port 8080 of the server's IP.
+#   docker compose -f deploy/docker-compose.http.yml up -d --build
+# Passwords and session cookies travel unencrypted over HTTP, so use this
+# only for a quick trial; switch to docker-compose.yml (HTTPS) for real use.
+# The data volume is shared with docker-compose.yml, so projects carry over.
+services:
+  app:
+    build: ..
+    image: chaos-collage:latest
+    restart: unless-stopped
+    environment:
+      CC_TRUST_PROXY: "0"
+      CC_ALLOW_SIGNUP: ${CC_ALLOW_SIGNUP:-1}
+      CC_INVITE_CODE: ${CC_INVITE_CODE:-}
+      CC_MAX_USERS: ${CC_MAX_USERS:-0}
+      CC_USER_QUOTA_MB: ${CC_USER_QUOTA_MB:-500}
+      CC_MAX_UPLOAD_MB: ${CC_MAX_UPLOAD_MB:-40}
+    volumes:
+      - chaos-data:/data
+    ports:
+      - "8080:8080"
+
+volumes:
+  chaos-data:
+    name: chaos-collage-data

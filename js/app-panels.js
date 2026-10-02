@@ -53,10 +53,11 @@
   function renderSaveStatus() {
     const el = dom.saveState;
     if (!el) return;
-    const labels = { idle: '', saved: '已保存到工程库', saving: '保存中…', unsaved: '有改动', error: '保存失败' };
+    const cloud = CC.cloud?.isEnabled();
+    const labels = { idle: '', saved: cloud ? '已保存到云端' : '已保存到工程库', saving: '保存中…', unsaved: '有改动', error: cloud ? '保存失败，重试中' : '保存失败' };
     el.textContent = labels[state.saveStatus] || '';
     el.dataset.status = state.saveStatus;
-    el.title = state.fileHandle ? `已关联文件：${state.fileHandle.name}（Ctrl+S 同时写入文件）` : '自动保存到本机浏览器工程库';
+    el.title = state.fileHandle ? `已关联文件：${state.fileHandle.name}（Ctrl+S 同时写入文件）` : cloud ? '自动保存到云端账号' : '自动保存到本机浏览器工程库';
   }
 
   function updateUndoButtons() {

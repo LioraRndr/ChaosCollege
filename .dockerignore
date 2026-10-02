@@ -1,0 +1,11 @@
+.git
+.github
+docs
+data
+deploy
+*.md
+.env
+.env.*
+launch.*
+serve.sh
+__pycache__

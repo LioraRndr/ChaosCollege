@@ -5,17 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0d0d10">
   <title>CHAOS.COLLAGE</title>
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230c0c0e'/%3E%3Crect x='6' y='11' width='13' height='15' rx='2.5' fill='none' stroke='%238b8b93' stroke-width='1.6'/%3E%3Crect x='12.5' y='6' width='13' height='15' rx='2.5' fill='%23d7ff2f' transform='rotate(8 19 13.5)'/%3E%3C/svg%3E">
+  <meta name="description" content="CHAOS.COLLAGE：浏览器里的高密度 Y2K / Y3K 拼贴海报编辑器">
+  <link rel="icon" type="image/svg+xml" href="assets/logo-mark.svg">
+  <link rel="icon" type="image/x-icon" href="assets/chaos-collage.ico" sizes="16x16 32x32 48x48">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body class="home-open no-doc">
   <div class="app-shell">
     <header class="topbar">
       <button class="brand" id="homeButton" title="工程主页">
-        <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
-          <rect x="5" y="10" width="15.5" height="17.5" rx="3" fill="none" stroke="#8b8b93" stroke-width="1.7"/>
-          <rect x="11.5" y="4.5" width="15.5" height="17.5" rx="3" fill="#d7ff2f" transform="rotate(8 19.25 13.25)"/>
-        </svg>
+        <img class="brand-mark" src="assets/logo-mark.svg" alt="" width="26" height="26">
         <span class="brand-text"><strong>CHAOS.COLLAGE</strong></span>
       </button>
 
@@ -135,6 +136,7 @@
 
   <script src="js/util.js"></script>
   <script src="js/storage.js"></script>
+  <script src="js/cloud.js"></script>
   <script src="js/fonts.js"></script>
   <script src="js/warp.js"></script>
   <script src="js/effects.js"></script>

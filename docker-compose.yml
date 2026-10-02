@@ -1,0 +1,45 @@
+# Production: the editor behind Caddy with automatic HTTPS.
+#   cp .env.example .env   # set CC_DOMAIN etc.
+#   docker compose up -d --build
+# Details: docs/DEPLOY.md
+services:
+  app:
+    build: .
+    image: chaos-collage:latest
+    restart: unless-stopped
+    environment:
+      CC_TRUST_PROXY: "1"            # only Caddy can reach this container
+      CC_ALLOW_SIGNUP: ${CC_ALLOW_SIGNUP:-1}
+      CC_INVITE_CODE: ${CC_INVITE_CODE:-}
+      CC_MAX_USERS: ${CC_MAX_USERS:-0}
+      CC_USER_QUOTA_MB: ${CC_USER_QUOTA_MB:-500}
+      CC_MAX_UPLOAD_MB: ${CC_MAX_UPLOAD_MB:-40}
+      CC_SESSION_DAYS: ${CC_SESSION_DAYS:-30}
+    volumes:
+      - chaos-data:/data
+    expose:
+      - "8080"
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      CC_DOMAIN: ${CC_DOMAIN:?在 .env 里设置 CC_DOMAIN，例如 collage.example.com}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  chaos-data:
+    name: chaos-collage-data
+  caddy-data:
+    name: chaos-collage-caddy-data
+  caddy-config:
+    name: chaos-collage-caddy-config
