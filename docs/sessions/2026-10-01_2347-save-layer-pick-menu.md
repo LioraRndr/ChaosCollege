@@ -57,3 +57,50 @@
 ## 追加：PR（2026-10-02）
 
 - 用户在 Claude Code 界面为本分支创建了 [LioraRndr/ChaosCollege#1](https://github.com/LioraRndr/ChaosCollege/pull/1)；后续推送到本分支会更新该 PR。交接与项目上下文已同步引用。
+
+## 追加：云端部署、新 Logo、GitHub 公开准备（2026-10-02 11:11 起）
+
+- PR #1 已由用户合并；本分支已快进到 `origin/main`（`0ffa7e1`）后继续。
+- 用户原话：
+
+> 我是用桌面快捷方式打开的，好像用的 Chrome 桌面应用的壳，我也有 Edge 浏览器。
+> 我现在要部署到我那个服务器上，提供云端使用，就是自动保存云端、可另存为到本地。
+> 然后重做一个精致点的logo。并且把 github 上面包装好，比如中文文档，之后要设为公开。
+
+- 用户选择（问答）：云端**公开注册、多用户**；公开前**重写 Git 历史**清除别人的参考截图；许可证 **MIT**；服务器 **Linux + Docker**。
+- 公开前审查发现：`assets/ref-*.jpg`、`samples.js`、`docs/experiments/datamosh-*` 里 7 张 PNG（内容是参考截图及其处理结果）仍在历史中；提交元数据含两个个人邮箱。未发现令牌 / 私钥。
+- 历史重写（filter-branch + 强推 main）被本环境的权限规则拦截，未执行；改为把命令交给用户在本机运行。
+- 计划：零依赖 Python 标准库后端（SQLite + 文件存储、注册登录、配额、限流），前端 `CC.storage` 增加云端实现；Docker Compose + Caddy 自动 HTTPS；新 Logo（SVG / ICO / PNG / 社交预览图）；中文 README、MIT LICENSE、部署文档。
+
+### 过程中的用户补充
+
+> 用instrument serif字体
+> 我说的是banner字体，logo的话感觉还是不放C比较好
+
+- 先做过「切片 C」图形，又试过用 Instrument Serif 的 C；按用户澄清，最终：**Logo 不含字母**（前后两张拼贴卡片，前卡被切开一条错位并带 RGB 分色，加 Y2K 四芒星，是旧 Logo 的延续）；**Instrument Serif 只用于 GitHub 横幅**（渲染为 PNG，字体文件不进仓库）；软件内字标保持原来的无衬线样式。
+
+### 实际结果
+
+- 云端服务 `server/chaos_server.py`（Python 标准库）：注册 / 登录 / 退出 / 改密码 / 注销账号；scrypt 密码哈希、HttpOnly + SameSite=Lax（HTTPS 下 Secure）会话 Cookie、写请求自定义头 + Origin 校验、登录注册限流、空间配额与单文件上限、注册开关 / 邀请码 / 人数上限；工程（带版本号做冲突检测）、图片、缩略图、字体的读写接口；只放行编辑器静态文件，带 CSP 等安全头；上传文件以附件形式返回（SVG 不会被当作网页执行）；`admin` 子命令管理账号。
+- 前端 `js/cloud.js`：自动识别云端服务，登录 / 注册页（可选「本机试用」），登录后把 `CC.storage` 的工程库换成 API；`app-core.js` 保存失败处理：网络错误静默重试、401 弹出重新登录、409 让用户选「加载云端版本 / 用当前窗口覆盖」；主页显示账号菜单、云端用量；文件菜单增加「账号」；状态栏与提示改为「已保存到云端」。`.chaos` 导入改为先建工程再传图片。
+- 部署：Dockerfile（非 root、健康检查）、docker-compose.yml（app + Caddy 自动 HTTPS，数据卷 `chaos-collage-data`）、deploy/Caddyfile、deploy/docker-compose.http.yml（无域名试用）、.env.example、.dockerignore；删除早期视频实验的 `server.py`。
+- 品牌：assets/logo-mark.svg、logo-glyph.svg、新 chaos-collage.ico（16–256）、icon-192/512、apple-touch-icon、manifest.webmanifest；页面图标与顶栏 / 主页 / 登录页换成新 Logo。
+- GitHub 包装：中文 README（横幅、徽章、特色、截图、快速开始、云端保存说明、快捷键、结构）、README.en.md、LICENSE（MIT）、CONTRIBUTING.md、SECURITY.md、Issue 模板、docs/DEPLOY.md（部署、配置、账号管理、备份、升级、HTTP 试用、无 Docker、安全设计、常见问题）、docs/images/。
+- 文档：PROJECT_CONTEXT、AGENTS.md 项目边界、docs/README、SESSION_HANDOFF、session 索引、新增 experiments/cloud-deploy-2026-10-02。
+
+### 验证
+
+- `node --check` 全部 JS、`python3 -m py_compile server/chaos_server.py` 通过。
+- 云端端到端 t12：19/19 PASS（两次全新数据目录）。
+- 接口安全探测（curl）：CSRF 403、路径穿越 / 非公开目录 404、未登录 401、弱密码 400、安全响应头齐全。
+- Docker：镜像构建、容器健康检查、`admin list` 正常；Compose + Caddy（localhost 内部证书）HTTPS 注册成功，Cookie 带 Secure，带 HSTS；两个 compose 文件 `config` 校验通过。
+- 自查发现并修复：被拒绝的写请求未读请求体会污染长连接上的下一个请求，改为出错时关闭连接；修复后重建镜像复测、t12 两次 19/19。
+- 测试插曲：容器内没有 `ss`，测试服务器重启脚本一度没停掉旧进程，改为按 /proc 命令行查找后重跑全部云端测试。
+- 本机版回归：t11 11/11，t1 / t2 / t5 / t6 无错误。
+
+### 未完成 / 需要用户操作
+
+- **重写 Git 历史**（清除 `assets/ref-*.jpg`、`samples.js`、datamosh 实验里 7 张含参考图的 PNG，并把提交中的两个个人邮箱换成 GitHub noreply 地址）被本环境权限拦截，需用户在本机执行；命令见本次最终回复。重写后 PR #1 页面仍引用旧提交，若要彻底清除需联系 GitHub Support 或重建仓库。
+- 设为公开、仓库简介 / Topics / 社交预览图（docs/images/banner.png）需在 GitHub 设置页由用户操作。
+- 部署到用户服务器需用户执行（我无法登录其服务器）；中国大陆服务器需 ICP 备案。
+- 用户确认：工程丢失时使用桌面快捷方式（Chrome 应用窗口）、同时装有 Edge。代码层未能复现整库消失；云端版上线后不再依赖浏览器存储。

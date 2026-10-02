@@ -9,6 +9,7 @@
   /* ---------------- icons ---------------- */
 
   const ICONS = {
+    user: '<circle cx="8" cy="5.6" r="2.7"/><path d="M2.8 14c.6-2.8 2.7-4.3 5.2-4.3s4.6 1.5 5.2 4.3"/>',
     image: '<rect x="2" y="3" width="12" height="10" rx="1.6"/><circle cx="5.6" cy="6.4" r="1.1"/><path d="M2.6 11.8 5.8 9l2.3 2 2.2-2.4 3.1 3.2"/>',
     text: '<path d="M3.2 4.6V3.2h9.6v1.4M8 3.2v9.6M6 12.8h4"/>',
     window: '<rect x="2" y="3.4" width="12" height="9.4" rx="1.6"/><path d="M2 6h12"/><path d="M3.8 4.7h.01M5.6 4.7h.01"/>',

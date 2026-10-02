@@ -2913,3 +2913,102 @@ body.no-doc .top-actions #exportButton {
     display: none;
   }
 }
+
+/* ---------------- cloud sign-in ---------------- */
+
+.auth-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+  overflow: auto;
+  background:
+    radial-gradient(60% 50% at 50% 0%, rgba(215, 255, 47, 0.08), transparent 70%),
+    var(--bg);
+}
+
+.auth-card {
+  width: min(360px, 100%);
+  display: grid;
+  gap: 12px;
+  padding: 28px 26px 22px;
+  border: 1px solid var(--line-bright);
+  border-radius: 14px;
+  background: var(--panel);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+}
+
+.auth-logo {
+  justify-self: center;
+  width: 56px;
+  height: 56px;
+}
+
+.auth-card h1 {
+  margin: 0;
+  text-align: center;
+  font-size: 17px;
+  letter-spacing: 0.08em;
+}
+
+.auth-sub {
+  margin: -4px 0 4px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+
+.auth-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 3px;
+  border-radius: 9px;
+  background: var(--panel-3);
+}
+
+.auth-tabs button {
+  height: 28px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.auth-tabs button.active {
+  background: var(--panel-4);
+  color: var(--text);
+}
+
+.auth-hint {
+  margin: 0;
+  color: var(--faint);
+  font-size: 10.5px;
+  line-height: 1.6;
+}
+
+.auth-error {
+  min-height: 1em;
+  margin: 0;
+  color: #ff8a93;
+  font-size: 11.5px;
+}
+
+.auth-error:empty {
+  display: none;
+}
+
+.auth-submit {
+  justify-content: center;
+  height: 34px;
+}
+
+.auth-local {
+  justify-self: center;
+  font-size: 11px;
+}

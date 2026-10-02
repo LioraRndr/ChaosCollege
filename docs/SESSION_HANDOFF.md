@@ -1,38 +1,30 @@
 # 当前 Session 交接
 
-更新时间：2026-10-02 00:05（Asia/Shanghai）
+更新时间：2026-10-02 11:35（Asia/Shanghai）
 
 ## 当前状态
 
-**最近一次（2026-10-01 23:47，分支 `claude/file-save-layers-menu-5k9g8u`）**：处理用户反馈的三个问题，详见 [2026-10-01_2347-save-layer-pick-menu.md](sessions/2026-10-01_2347-save-layer-pick-menu.md)。
+分支 `claude/file-save-layers-menu-5k9g8u`（PR #1 已合并后继续）完成了云端版、新 Logo 和 GitHub 公开准备，尚未合并到 main。详细过程见 [2026-10-01_2347-save-layer-pick-menu.md](sessions/2026-10-01_2347-save-layer-pick-menu.md) 的「追加：云端部署……」一节，稳定事实见 [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md)。
 
-- 保存：先写工程再生成缩略图，关窗口前最后的改动不再丢；关联 `.chaos` 文件后自动保存会顺带写入（需已授权）；主页底部显示工程库所在浏览器与来源。用户说的「重启后整个工程没了」在代码里没能复现，**待用户确认**打开方式 / 浏览器 / 清除数据设置。
-- 点选：点击处有已选图层时优先编辑它；右键「选择图层」列出指针下所有图层。
-- 菜单：子菜单扫过后只保留当前行高亮；「经典」预设不再重复尺寸。
-- 验证：t11 11/11 PASS，旧回归 t1 / t2 / t5 / t6 通过，见 [save-pick-menu-2026-10-01](experiments/save-pick-menu-2026-10-01/README.md)。
-
-**此前**：
-2026-10-01 的产品化升级已完成并通过浏览器回归：原型被重构为模块化的静态平面设计编辑器，用户提出的五项要求都已落地（Y3K 也已调研并实现）。详细过程见 [2026-10-01_1433-product-editor-upgrade.md](sessions/2026-10-01_1433-product-editor-upgrade.md)，稳定事实见 [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md)。
-
-- 工程：IndexedDB 工程库 + 自动保存、工程主页（管理界面）、新建工程预设、`.chaos` 工程文件打开 / 保存、画布大小改为菜单里的一次性对话框（旧的比例快捷按钮已去掉）。
-- 配方和三张参考截图（`samples.js`、`assets/ref-*.jpg`）已删除。
-- 字体：163 个分组条目 + 本机全部字体 + 导入字体库。
-- 工具栏、变形（非等比拉伸、扭曲 / 透视 / 斜切 / 网格）、40 个效果、18 个一键风格、26 个生成器、55 个贴纸、图层样式、剪切蒙版等。
-- Y3K：调研见 [research/y3k.md](research/y3k.md)；新增玻璃折射、氛围光晕、毛玻璃样式、HUD、Y3K 组合与风格预设。
+- **云端版**：`server/chaos_server.py`（Python 标准库）+ `js/cloud.js`；公开注册、云端自动保存、冲突提示、配额、管理命令；Docker Compose + Caddy 自动 HTTPS。部署步骤见 [DEPLOY.md](DEPLOY.md)。
+- **本机版**：照旧可用（file:// / 桌面快捷方式），保存可靠性修复（PR #1）已在 main。
+- **品牌**：不含字母的新 Logo（拼贴卡片 + 错位切片 + RGB 分色 + 四芒星），新 ico / PWA 图标；GitHub 横幅用 Instrument Serif（只在横幅 PNG 中）。
+- **GitHub**：中文 README、README.en.md、MIT LICENSE、CONTRIBUTING、SECURITY、Issue 模板。
 
 ## 验证
 
-- 全部 JS `node --check` 通过；新增 / 修改的文本文件为 UTF-8 无 BOM、LF。
-- 浏览器回归 t1–t10 全部通过，脚本与截图在 [experiments/editor-upgrade-2026-10-01](experiments/editor-upgrade-2026-10-01/README.md)。
-- 区块故障 / 帧感染与改造前算法逐像素对比 21/21 一致（用户认可的视觉未变）。
-- A4 大图 + 重效果：拖拽缩放约 17 ms/帧，拖效果滑杆平均约 31 ms/帧。
+- 云端端到端 t12 19/19；接口安全探测；Docker 镜像与 Compose + Caddy（localhost）实测通过。见 [cloud-deploy-2026-10-02](experiments/cloud-deploy-2026-10-02/README.md)。
+- 本机版 t11 11/11，旧回归 t1 / t2 / t5 / t6 无错误。
 
-## 下一步需要知道的
+## 等待用户
 
-- **需要用户实机确认**：Windows 桌面快捷方式启动；系统剪贴板粘贴图片；「另存为工程文件」的系统保存对话框；「读取本机全部字体」授权弹窗；Windows 上的中文字体列表实际可用数量。这些在无头 Linux 环境里没法完整验证。
-- **数据位置**：工程库在浏览器配置文件里；file:// 与 http://127.0.0.1:8080、Chrome 与 Edge 都是独立的库。重要工程建议另存 `.chaos`（之后自动保存会顺带更新它）。
-- **可选后续**：自动备份到用户选定的文件夹（目录句柄），作为浏览器存储之外的第二份。
-- **Git**：`origin/main` 已含产品化升级；本次修复在分支 `claude/file-save-layers-menu-5k9g8u`，已开 [PR #1](https://github.com/LioraRndr/ChaosCollege/pull/1)，等待用户审阅合并。
-- **性能边界**：效果在主线程计算；超大图 + 帧感染单次可达数百毫秒；未加 Worker / GPU。
-- **可继续的方向**（未承诺）：图层编组、标尺与自定义参考线、图片裁剪框交互、更多贴纸、真实 3D 文字挤出、导入 SVG 为可编辑矢量。
-- `server.py` 仍是早期视频实验残留，未删除。
+1. **公开前重写 Git 历史**（本环境权限拦截，需用户本机执行）：清除 `assets/ref-*.jpg`、`samples.js` 和 datamosh 实验目录里 7 张含参考图的 PNG，并把两个个人邮箱替换为 GitHub noreply 地址，然后强推所有分支。PR #1 页面仍会引用旧提交，彻底清除需联系 GitHub Support 或重建仓库。命令在 session 记录对应的最终回复中。
+2. 合并本分支到 main（建议在历史重写之前合并，再一起重写）。
+3. GitHub 设置：设为公开、简介、Topics、社交预览图上传 `docs/images/banner.png`、开启 Private vulnerability reporting（SECURITY.md 依赖它）。
+4. 在自己的服务器上按 DEPLOY.md 部署；中国大陆服务器需备案。
+
+## 下一步可做
+
+- 历史重写后，文档里提到的旧提交号（如 `515b299`）都会失效，需要顺手更新。
+- 可选：管理后台页面、邮箱找回密码（需要 SMTP）、工程分享链接、定时备份脚本。
+- 性能边界不变：效果在主线程计算，超大图 + 帧感染单次可达数百毫秒。

@@ -1,10 +1,16 @@
 # CHAOS.COLLAGE 项目上下文
 
-最后核对：2026-10-02 00:05（Asia/Shanghai）
+最后核对：2026-10-02 11:35（Asia/Shanghai）
 
 ## 项目定位
 
 CHAOS.COLLAGE 是浏览器端的静态平面设计编辑器，面向高密度 Y2K / Y3K、cyber-collage、Xerox / Punk 风格的海报与图形。原生 HTML / CSS / JS，无依赖、无构建，直接打开 `index.html` 即可使用（file:// 下也能用，所以不用 ES module，全部是经典脚本）。只做静态图片，不处理视频。
+
+两种用法共用同一套前端：
+- **本机版**：file:// 或任意静态服务器打开，工程存在浏览器 IndexedDB。
+- **云端版**（2026-10-02 起，用户授权）：`server/chaos_server.py` 同时提供静态文件和账号 / 工程 API，开放注册，工程自动保存到服务器；用 Docker Compose + Caddy 部署。服务端只用 Python 标准库。
+
+仓库计划公开，许可证 MIT；GitHub 首页是中文 [README](../README.md)（英文版 README.en.md），部署说明见 [DEPLOY.md](DEPLOY.md)。
 
 ## 当前能力
 
@@ -26,13 +32,17 @@ CHAOS.COLLAGE 是浏览器端的静态平面设计编辑器，面向高密度 Y2
 ```text
 ChaosCollege/
 ├─ AGENTS.md                 # 新 session 必读规则与本地化记录协议
-├─ README.md                 # 用户运行说明
+├─ README.md / README.en.md  # 中文 / 英文首页说明（含横幅、截图）
+├─ LICENSE                   # MIT
+├─ CONTRIBUTING.md / SECURITY.md / .github/ISSUE_TEMPLATE/
+├─ manifest.webmanifest      # PWA 清单（Chrome 可「安装」为桌面应用）
 ├─ index.html                # 单页 DOM 骨架，按依赖顺序加载 js/*.js
 ├─ styles.css                # 全部界面样式
 ├─ app.js                    # 启动：收集 DOM、恢复字体库与偏好、打开工程主页
 ├─ js/
 │  ├─ util.js                # CC.util：数学、随机、颜色、画布、文件工具
 │  ├─ storage.js             # CC.storage：IndexedDB 工程库 + .chaos 文件格式
+│  ├─ cloud.js               # CC.cloud：检测云端服务、登录 / 注册界面、把 CC.storage 的工程库部分替换为 API 调用
 │  ├─ fonts.js               # CC.fonts：字体目录、可用性检测、本机字体、导入字体
 │  ├─ warp.js                # CC.warp：四角单应 + 4×4 Bézier 网格，软件光栅化
 │  ├─ effects.js             # CC.effects：效果注册表、像素工具、调色/印刷/光效/风格化
@@ -49,12 +59,15 @@ ChaosCollege/
 │  ├─ app-tools.js           # 工具与指针交互、覆盖层、吸附、文字编辑、快捷键、拖放粘贴
 │  ├─ app-panels.js          # 工具栏、选项栏、图层/资源/历史面板、抽屉、属性面板
 │  └─ app-dialogs.js         # 工程主页、新建 / 画布大小 / 导出对话框、菜单、文件读写
-├─ server.py                 # 早期视频实验残留；当前不使用
-├─ serve.sh                  # 普通静态服务器（8080）
+├─ server/chaos_server.py    # 云端服务：静态文件 + API，SQLite（账号 / 会话 / 索引）+ 文件（工程 JSON、图片、缩略图、字体），管理命令 admin
+├─ Dockerfile / docker-compose.yml / .env.example / .dockerignore
+├─ deploy/                   # Caddyfile；docker-compose.http.yml（无域名 HTTP 试用）
+├─ serve.sh                  # 普通静态服务器（8080，本机版）
 ├─ launch.ps1 / launch.vbs / launch.bat  # Windows 启动器（Chrome/Edge --app 打开 index.html）
-├─ assets/chaos-collage.ico  # 桌面图标
+├─ assets/                   # logo-mark.svg（带底）/ logo-glyph.svg（透明）/ chaos-collage.ico / icon-192、512 / apple-touch-icon
 └─ docs/
-   ├─ README.md / PROJECT_CONTEXT.md / SESSION_HANDOFF.md
+   ├─ README.md / PROJECT_CONTEXT.md / SESSION_HANDOFF.md / DEPLOY.md
+   ├─ images/                # README 横幅（Instrument Serif 字标，渲染好的 PNG）与截图
    ├─ research/y3k.md        # Y3K 调研
    ├─ experiments/           # 历次验证证据（含 2026-10-01 测试脚本与截图）
    └─ sessions/              # 每次对话的本地历史
@@ -65,7 +78,8 @@ ChaosCollege/
 - Windows：桌面快捷方式 `CHAOS.COLLAGE.lnk` → `launch.vbs` → `launch.ps1`，用 Chrome / Edge 的 `--app` 窗口打开 `index.html`（file://）。目录结构变化不影响启动器。
 - 其他：直接打开 `index.html`，或 `python -m http.server 8080` 后访问 `http://127.0.0.1:8080`。注意两种方式是不同来源，工程库互不可见。
 - 语法检查：`for f in js/*.js app.js; do node --check "$f"; done`
-- 浏览器回归：[experiments/editor-upgrade-2026-10-01](experiments/editor-upgrade-2026-10-01/README.md) 中的 playwright-core 脚本（依赖装在 /tmp，不进入项目）。
+- 浏览器回归：[experiments/editor-upgrade-2026-10-01](experiments/editor-upgrade-2026-10-01/README.md) 中的 playwright-core 脚本（依赖装在 /tmp，不进入项目）；云端版见 [experiments/cloud-deploy-2026-10-02](experiments/cloud-deploy-2026-10-02/README.md)。
+- 云端版本地运行：`python3 server/chaos_server.py`（默认 127.0.0.1:8080，数据在 `./data/`，已在 .gitignore）；`python3 -m py_compile server/chaos_server.py` 做语法检查。
 
 ## 运行时架构
 
@@ -76,19 +90,21 @@ ChaosCollege/
 5. 渲染：无效果 / 变形 / 样式的图层直接矢量绘制；否则走栅格管线「内容 → 效果栈 → 贴纸描边 → 变形 → 合成（投影 / 外发光）」，结果按内容哈希 + 质量缓存（LRU，192 MiB）。效果另有阶段缓存（96 MiB），调整第 N 个效果时复用前 N-1 个的输出。视口质量按缩放取 0.25 / 0.5 / 1 / 2；拖拽缩放时复用旧栅格拉伸预览，慢图层在交互中降低预览精度。
 6. 剪切蒙版：一个基础图层加上方连续的 `clip` 图层组成一组，在临时画布中以基础图层的 alpha 裁切；毛玻璃样式把当前已绘制内容模糊后裁进图层形状。
 7. 历史：每步保存文档 JSON 快照，最多 100 步，历史面板可跳转。任何改动标记为未保存，900 ms 防抖后写入 IndexedDB：先写工程文档（沿用旧缩略图），再异步生成 360px WebP 缩略图单独更新，所以 pagehide / 切到后台时的保存能在窗口关闭前开始写入。工程关联了 `.chaos` 文件且写权限已授予时，保存后 4 s 防抖顺带写入该文件。
-8. `.chaos` 文件：JSON（`format: "chaos-collage-project"`、`version: 2`、`doc`、以 data URL 内嵌的 `assets` 与用到的导入字体 `fonts`）。打开时若库中已有同 ID 工程，可选择覆盖或作为副本打开。
+8. 云端模式：`app.js` 启动时请求 `/api/config`（只在 http/https 下），存在则先登录（或选择本机试用），登录后 `CC.cloud.enable()` 用 API 实现覆盖 `CC.storage` 的工程 / 资源 / 缩略图 / 字体方法；设置与文件句柄仍在本机 IndexedDB。保存带 `baseRev`，服务端版本不同返回 409，前端让用户选择加载云端版本或覆盖；401 时弹出重新登录，网络错误静默重试。写请求必须带 `X-Requested-With: chaos-collage`，并校验 Origin。
+9. `.chaos` 文件：JSON（`format: "chaos-collage-project"`、`version: 2`、`doc`、以 data URL 内嵌的 `assets` 与用到的导入字体 `fonts`）。打开时若库中已有同 ID 工程，可选择覆盖或作为副本打开。
 
 ## 关键约束
 
 - 现有文本文件均为 UTF-8（无 BOM）、LF；修改前仍按 `AGENTS.md` 复核编码。
 - 不引入包管理器、框架或构建；测试驱动只装在 /tmp。
 - 浏览器目标为 Chrome / Edge（canvas filter、letterSpacing、File System Access、Local Font Access）。其他浏览器缺失这些 API 时会退化（如另存改为下载）。
-- 数据只在本机浏览器中，清除浏览器数据会删除工程库；重要工程应另存 `.chaos`。
+- 本机版数据只在本机浏览器中，清除浏览器数据会删除工程库；重要工程应另存 `.chaos`。云端版数据在服务器卷 `chaos-collage-data`，备份方法见 DEPLOY.md。
+- 服务端只用 Python 标准库，不引入 pip 依赖；静态文件只放行 index.html / styles.css / app.js / manifest.webmanifest / js/ / assets/。
 - 效果与生成器在主线程计算。大图（如 A4 300 DPI）加帧感染这类重效果，单次计算可达数百毫秒；导出受浏览器画布上限约束（单边 ≤ 32000、总像素约 2.2 亿以内）。
-- `docs/experiments/datamosh-*` 的旧基准脚本依赖已删除的 `samples.js`，需要从基线提交 `515b299` 取回才能重跑。
+- `docs/experiments/datamosh-*` 的旧基准脚本依赖已删除的 `samples.js`（含他人截图，公开前要从 Git 历史中清除），这些基准无法再重跑；结论保留在各自 README / JSON 中。
 
 ## 版本管理
 
-- 远端 `https://github.com/LioraRndr/ChaosCollege`（私有）。`origin/main` 已包含 2026-10-01 产品化升级（截至 `43bbdd7`）。
+- 远端 `https://github.com/LioraRndr/ChaosCollege`（目前私有，计划公开）。公开前需由用户在本机重写历史，清除他人参考截图并替换提交中的个人邮箱（步骤见 2026-10-01_2347 session 记录），重写后旧提交号全部失效。
 - 之后的改动在功能分支上进行（如 2026-10-01 夜间的 `claude/file-save-layers-menu-5k9g8u`），通过 PR 合并到 main（如 [PR #1](https://github.com/LioraRndr/ChaosCollege/pull/1)）。
 - 仓库级 `core.autocrlf=false`，`.gitattributes` 为 `* -text`。

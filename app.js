@@ -49,7 +49,17 @@
     });
   }
 
+  /* Served by the cloud server: sign in (or pick the local trial) first, so
+     the project library and imported fonts come from the account. */
+  async function connectCloud() {
+    if (!(await CC.cloud.detect())) return;
+    let user = await CC.cloud.refreshUser().catch(() => null);
+    if (!user) user = await CC.cloud.showAuthGate();
+    if (user) CC.cloud.enable();
+  }
+
   async function restoreLibrary() {
+    await connectCloud();
     await CC.storage.open();
     const fonts = await CC.storage.listFonts();
     for (const record of fonts) {

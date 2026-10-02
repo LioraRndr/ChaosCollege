@@ -6,12 +6,14 @@
 2. **当前状态**：[`SESSION_HANDOFF.md`](SESSION_HANDOFF.md) — 最近进展、验证情况、未决事项和下一步。
 3. **历史记录**：[`sessions/README.md`](sessions/README.md) — 每次新对话的本地索引与独立记录。
 
-代理的强制启动/收尾流程位于根目录 [`AGENTS.md`](../AGENTS.md)。新 session 应先读稳定事实，再读当前状态，最后只补充阅读最近的历史记录。
+代理的强制启动/收尾流程位于根目录 [`AGENTS.md`](../AGENTS.md)。
+
+- **部署**：[`DEPLOY.md`](DEPLOY.md) — 云端版 Docker / Caddy 部署、配置、账号管理、备份。新 session 应先读稳定事实，再读当前状态，最后只补充阅读最近的历史记录。
 
 补充资料：
 
 - **调研**：[`research/y3k.md`](research/y3k.md) — Y3K 风格调研、来源与功能对照。
-- **验证证据**：[`experiments/`](experiments/) — 每次重要改动的测试脚本、基准与截图，例如 [`editor-upgrade-2026-10-01`](experiments/editor-upgrade-2026-10-01/README.md)、[`save-pick-menu-2026-10-01`](experiments/save-pick-menu-2026-10-01/README.md)。
+- **验证证据**：[`experiments/`](experiments/) — 每次重要改动的测试脚本、基准与截图，例如 [`editor-upgrade-2026-10-01`](experiments/editor-upgrade-2026-10-01/README.md)、[`save-pick-menu-2026-10-01`](experiments/save-pick-menu-2026-10-01/README.md)、[`cloud-deploy-2026-10-02`](experiments/cloud-deploy-2026-10-02/README.md)。
 
 ## 维护原则
 

@@ -35,6 +35,8 @@
     dirty: false,
     saving: false,
     saveAgain: false,
+    saveBlocked: false,
+    saveErrorAt: 0,
     fileHandle: null,
     pointer: null,
     hover: null,
@@ -294,8 +296,10 @@
      pagehide gives no time to render a thumbnail before the write. */
   const thumbs = new Map();
 
-  async function saveProject({ force = false, thumbnail = true } = {}) {
+  async function saveProject({ force = false, thumbnail = true, overwrite = false } = {}) {
     if (!state.doc) return;
+    /* a failed cloud save waits for its retry / sign-in / conflict choice */
+    if (state.saveBlocked && !overwrite) return;
     if (state.saving) {
       state.saveAgain = true;
       return;
@@ -318,14 +322,16 @@
         doc: U.deepCopy(doc),
         thumb: thumbs.has(doc.id) ? thumbs.get(doc.id) : undefined,
         fileName: state.fileHandle?.name || '',
+        force: overwrite,
       });
       saved = true;
+      state.saveErrorAt = 0;
       setSaveStatus(state.dirty ? 'unsaved' : 'saved');
     } catch (error) {
-      console.error(error);
+      if (!['conflict', 'unauthorized'].includes(error?.code)) console.error(error);
       state.dirty = true;
       setSaveStatus('error');
-      ui.toast(`保存到工程库失败：${error.message || error}`, 'error');
+      handleSaveError(error, doc);
     } finally {
       state.saving = false;
       if (state.saveAgain || state.dirty) {
@@ -337,6 +343,51 @@
       App.autoWriteLinkedFile?.();
       if (thumbnail && document.visibilityState !== 'hidden') refreshThumbnail(doc);
     }
+  }
+
+  function handleSaveError(error, doc) {
+    const unblock = () => {
+      state.saveBlocked = false;
+      if (state.dirty) scheduleSave();
+    };
+    if (error?.code === 'unauthorized') {
+      state.saveBlocked = true;
+      CC.cloud.showAuthGate({ reason: '登录已过期，请重新登录；未保存的改动会在登录后继续保存。', allowLocal: false }).then(unblock);
+      return;
+    }
+    if (error?.code === 'conflict') {
+      state.saveBlocked = true;
+      ui.choiceDialog('工程在别处被修改了', `「${doc.name}」已在其他窗口或设备上保存过更新的版本。要保留哪一份？`, [
+        { label: '加载云端版本', value: 'reload' },
+        { label: '用当前窗口覆盖', value: 'overwrite', kind: 'primary' },
+      ]).then(async (choice) => {
+        if (choice === 'reload' && state.doc === doc) {
+          state.saveBlocked = false;
+          state.dirty = false;
+          await App.openProject(doc.id);
+          ui.toast('已加载云端版本');
+          return;
+        }
+        if (choice === 'overwrite') {
+          state.saveBlocked = false;
+          await saveProject({ force: true, overwrite: true });
+          return;
+        }
+        /* dialog dismissed: ask again on the next attempt */
+        unblock();
+      });
+      return;
+    }
+    /* network or server trouble: keep the edits and retry quietly */
+    if (state.saveErrorAt && Date.now() - state.saveErrorAt < 60000) {
+      state.saveBlocked = true;
+      setTimeout(unblock, 8000);
+      return;
+    }
+    state.saveErrorAt = Date.now();
+    ui.toast(`保存失败：${error.message || error}（会自动重试，请勿关闭页面）`, 'error');
+    state.saveBlocked = true;
+    setTimeout(unblock, 5000);
   }
 
   async function refreshThumbnail(doc) {
@@ -360,6 +411,7 @@
     state.history = [];
     state.future = [];
     state.dirty = false;
+    state.saveBlocked = false;
     state.fileHandle = fileHandle;
     assetRecords.forEach((record) => registerAsset(record));
     state.doc.layers.filter((layer) => layer.type === 'text').forEach(syncTextBox);
