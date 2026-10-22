@@ -95,6 +95,7 @@
       shape: '拖动绘制形状 · Shift 等比 · Alt 从中心绘制 · 单击放置默认尺寸',
       brush: '按住拖动绘制笔触，每一笔是一个可编辑的图层',
       eyedropper: '单击画布取色，自动应用到选中图层的主色',
+      format: '选择源对象后按 K，再单击目标 · 双击工具可连续刷 · Esc 退出 · Ctrl+Alt+C / V 复制 / 粘贴格式',
     };
     dom.statusText.textContent = hints[state.tool] || tool?.name || '';
   }
@@ -143,6 +144,14 @@
         state.opts[key] = event.target.value;
         rail.querySelector(`.color-chip.${key === 'fg' ? 'fg' : 'bg'}`).style.background = event.target.value;
       });
+      rail.addEventListener('dblclick', (event) => {
+        if (event.target.closest('[data-tool="format"]')) {
+          if (!state.formatPainter) App.setTool('format');
+          state.formatPainter.continuous = true;
+          renderOptionsBar();
+          ui.toast('连续格式刷 · Esc 退出');
+        }
+      });
     }
     rail.querySelectorAll('[data-tool]').forEach((button) => button.classList.toggle('active', button.dataset.tool === state.tool));
     rail.querySelectorAll('[data-rail-action="generators"], [data-rail-action="elements"]').forEach((button) => button.classList.toggle('active', flyoutKind === button.dataset.railAction));
@@ -165,6 +174,7 @@
     const tool = App.TOOLS.find((item) => item.id === state.tool);
     html += `<span class="opt-title">${ui.icon(tool?.icon || 'select')}<span>${escapeHtml(tool?.name.split('（')[0] || '')}</span></span><span class="opt-sep"></span>`;
     if (state.tool === 'select') {
+      const grouped = App.selectedGroup();
       html += `
         <button class="opt-button${opts.snap ? ' on' : ''}" data-opt-toggle="snap" title="智能吸附（拖动时按住 Ctrl 临时关闭）">${ui.icon('magnet')}<span>吸附</span></button>
         <button class="opt-button${opts.grid ? ' on' : ''}" data-opt-toggle="grid" title="显示网格">${ui.icon('grid')}<span>网格</span></button>
@@ -177,7 +187,17 @@
         <button class="opt-icon" data-opt-action="distribute-y" title="垂直分布">${ui.icon('distV')}</button>
         <span class="opt-sep"></span>
         <button class="opt-icon" data-opt-action="flip-x" title="水平翻转">${ui.icon('flipH')}</button>
-        <button class="opt-icon" data-opt-action="flip-y" title="垂直翻转">${ui.icon('flipV')}</button>`;
+        <button class="opt-icon" data-opt-action="flip-y" title="垂直翻转">${ui.icon('flipV')}</button>
+        ${state.selection.length > 1 ? `<span class="opt-sep"></span>
+          ${grouped ? '<span class="opt-hint">组合 · 整体缩放</span>' : ui.segmented('multiResize', opts.multiResize, [['overall', '整体缩放'], ['individual', '分别缩放']], { scope: 'opts' })}
+          <button class="opt-icon" data-opt-action="group" title="组合 (Ctrl+G)" ${App.canGroup() ? '' : 'disabled'}>${ui.icon('group')}</button>
+          <button class="opt-icon" data-opt-action="ungroup" title="解除组合 (Ctrl+Shift+G)" ${App.canUngroup() ? '' : 'disabled'}>${ui.icon('ungroup')}</button>` : ''}`;
+    } else if (state.tool === 'format') {
+      const painter = state.formatPainter;
+      html += `<span class="opt-hint">${painter?.format ? `来源：${escapeHtml(painter.format.name)} · 单击目标应用` : '先单击一个对象拾取格式'}</span>
+        <button class="opt-button${painter?.continuous ? ' on' : ''}" data-opt-action="format-continuous">连续刷</button>
+        <button class="opt-button" data-opt-action="format-selection" ${painter?.format && state.selection.length ? '' : 'disabled'}>应用到所选</button>
+        <button class="opt-button" data-opt-action="format-exit">退出 (Esc)</button>`;
     } else if (state.tool === 'transform') {
       html += `
         ${ui.segmented('warpMode', opts.warpMode, [['distort', '扭曲'], ['perspective', '透视'], ['skew', '斜切'], ['mesh', '网格变形']], { scope: 'opts' })}
@@ -235,6 +255,7 @@
       if (seg && seg.dataset.scope === 'opts') {
         U.setByPath(state.opts, seg.dataset.segPath, seg.dataset.segValue);
         renderOptionsBar();
+        if (seg.dataset.segPath === 'multiResize') renderInspector();
         App.requestRender('overlay');
         return;
       }
@@ -248,6 +269,11 @@
       }
       const action = event.target.closest('[data-opt-action]')?.dataset.optAction;
       if (!action) return;
+      if (action === 'group') App.groupSelection();
+      if (action === 'ungroup') App.ungroupSelection();
+      if (action === 'format-continuous') { state.formatPainter.continuous = !state.formatPainter.continuous; renderOptionsBar(); }
+      if (action === 'format-selection' && App.applyFormat(state.formatPainter?.format) && !state.formatPainter.continuous) App.setTool('select');
+      if (action === 'format-exit') App.setTool('select');
       if (action === 'distribute-x') App.distributeSelection('x');
       if (action === 'distribute-y') App.distributeSelection('y');
       if (action === 'flip-x') App.flipSelection('x');
@@ -340,6 +366,7 @@
             <small>${escapeHtml(M.TYPE_NAMES[layer.type] || '图层')} · ${Math.round(layer.w)} × ${Math.round(layer.h)}</small>
           </span>
           <span class="layer-badges">
+            ${App.groupOf(layer) ? `<span class="badge group-badge" title="组合对象 · Alt+单击图层可单独编辑成员">${ui.icon('group')}</span>` : ''}
             ${fxCount ? `<span class="badge" title="${fxCount} 个效果">fx${fxCount > 1 ? fxCount : ''}</span>` : ''}
             ${warped ? `<span class="badge" title="已变形">${ui.icon('warp')}</span>` : ''}
             ${styled ? '<span class="badge" title="图层样式">◐</span>' : ''}
@@ -373,6 +400,8 @@
         return;
       }
       const id = row.dataset.layerId;
+      if (state.tool === 'format' && !event.altKey) { App.paintFormatAt(App.layerById(id)); return; }
+      if (event.altKey) { App.select(id, { individual: true }); return; }
       if (event.shiftKey && state.selection.length) {
         const order = [...state.doc.layers].reverse().map((layer) => layer.id);
         const anchor = order.indexOf(state.selection[state.selection.length - 1]);
@@ -1145,10 +1174,25 @@
         `<div class="empty-panel compact"><p>点击画布中的对象，或在左侧图层列表中选择。<br>Ctrl+A 全选，框选可多选。</p></div>`,
       ].join('');
     } else if (layers.length > 1) {
-      dom.inspectorBadge.textContent = `${layers.length} 个图层`;
+      const grouped = App.selectedGroup();
+      const box = App.unionAABB(layers.map(App.layerAABB));
+      const locked = layers.some(App.isLayerLocked);
+      dom.inspectorBadge.textContent = grouped ? '组合' : `${layers.length} 个图层`;
       const opacity = layers[layers.length - 1].opacity;
       el.innerHTML = [
         sec('multi', `已选 ${layers.length} 个图层`, `
+          <div class="button-row">
+            <button type="button" class="mini-button" data-insp-action="group" ${App.canGroup() ? '' : 'disabled'}>${ui.icon('group')}组合</button>
+            <button type="button" class="mini-button" data-insp-action="ungroup" ${App.canUngroup() ? '' : 'disabled'}>${ui.icon('ungroup')}解除组合</button>
+          </div>
+          <p class="muted-note">${grouped ? '组合中的对象一起移动、缩放和旋转。Alt+单击图层可单独编辑成员。' : '拖动选区的边角柄缩放，或输入倍率一次应用。'}</p>
+          <div class="multi-resize-controls">
+            ${grouped ? '<span class="muted-note">当前：整体缩放</span>' : ui.segmented('multiResize', state.opts.multiResize, [['overall', '整体缩放'], ['individual', '分别缩放']], { scope: 'opts' })}
+            <p class="muted-note">${App.resizeMode() === 'individual' ? '各对象保持中心位置，分别改变尺寸。' : '尺寸、相对位置和间距一起改变。'}</p>
+            <div class="selection-size" data-selection-size>${Math.round(box.maxX - box.minX)} × ${Math.round(box.maxY - box.minY)} px</div>
+            <div class="button-row scale-entry"><label>倍率 <input class="value-input" type="number" value="100" min="1" max="10000" step="1" data-scale-percent aria-label="缩放倍率"> %</label><button type="button" class="mini-button" data-insp-action="scale-selection" ${locked ? 'disabled' : ''}>应用</button></div>
+            ${locked ? '<p class="muted-note">所选对象包含锁定成员，请先解锁后缩放。</p>' : ''}
+          </div>
           <div class="button-row icons">
             ${['alignLeft:left', 'alignCenter:hcenter', 'alignRight:right', 'alignTop:top', 'alignMiddle:vcenter', 'alignBottom:bottom'].map((pair) => {
               const [iconName, mode] = pair.split(':');
@@ -1212,6 +1256,12 @@
   }
 
   function renderTransformFields() {
+    if (state.selection.length > 1 && dom.inspector) {
+      const box = App.unionAABB(App.selectedLayers().map(App.layerAABB));
+      const size = dom.inspector.querySelector('[data-selection-size]');
+      if (size && box) size.textContent = `${Math.round(box.maxX - box.minX)} × ${Math.round(box.maxY - box.minY)} px`;
+      return;
+    }
     const layer = state.selection.length === 1 ? App.primaryLayer() : null;
     if (!layer || !dom.inspector) return;
     ['x', 'y', 'w', 'h', 'rotation'].forEach((key) => {
@@ -1343,11 +1393,11 @@
       if (details.dataset?.section) openSections.set(details.dataset.section, details.open);
     }, true);
     el.addEventListener('pointerdown', (event) => {
-      if (event.target.matches('input, select, textarea')) beginControl();
+      if (event.target.matches('[data-path]')) beginControl();
       if (event.target.matches('input[type="range"]')) state.interacting = 'slider';
     });
     el.addEventListener('focusin', (event) => {
-      if (event.target.matches('input, select, textarea')) beginControl();
+      if (event.target.matches('[data-path]')) beginControl();
     });
     el.addEventListener('input', (event) => {
       if (!event.target.matches('[data-path]')) return;
@@ -1376,6 +1426,10 @@
       }
     });
     el.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' && event.target.matches('[data-scale-percent]')) {
+        event.preventDefault(); event.stopPropagation();
+        App.scaleSelectionBy(Number(event.target.value)); return;
+      }
       if (event.key === 'Enter' && event.target.matches('input.text-input, input.value-input')) event.target.blur();
       if (event.key === 'Escape') {
         event.target.blur?.();
@@ -1390,6 +1444,10 @@
     el.addEventListener('click', (event) => {
       const seg = event.target.closest('[data-seg-path]');
       if (seg) {
+        if (seg.dataset.scope === 'opts') {
+          U.setByPath(state.opts, seg.dataset.segPath, seg.dataset.segValue);
+          renderOptionsBar(); renderInspector(); App.requestRender('overlay'); return;
+        }
         const layer = App.primaryLayer();
         if (!layer) return;
         App.change('修改属性', () => {
@@ -1521,6 +1579,14 @@
       case 'delete':
         App.deleteSelection();
         break;
+      case 'group': App.groupSelection(); break;
+      case 'ungroup': App.ungroupSelection(); break;
+      case 'scale-selection': {
+        const percent = Number(dom.inspector.querySelector('[data-scale-percent]')?.value);
+        if (!Number.isFinite(percent) || percent <= 0 || percent > 10000) ui.toast('倍率需大于 0 且不超过 10000%');
+        else App.scaleSelectionBy(percent);
+        break;
+      }
       case 'front':
         App.moveLayers('front');
         break;

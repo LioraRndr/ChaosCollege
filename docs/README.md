@@ -15,6 +15,8 @@
 
 ## 维护原则
 
+最新功能验收：[格式刷、多选缩放、组合与吸附（2026-10-22）](experiments/editing-tools-2026-10-22/README.md)。
+
 - `PROJECT_CONTEXT.md` 只在稳定事实变化时更新。
 - `SESSION_HANDOFF.md` 是可覆盖的“现在”，不要堆积完整历史。
 - `sessions/` 是只追加的“过去”，每个新对话单独建档。

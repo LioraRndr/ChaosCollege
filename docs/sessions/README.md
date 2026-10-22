@@ -10,6 +10,8 @@ YYYY-MM-DD_HHmm-<short-slug>.md
 
 ## 最近记录（新到旧）
 
+- [`2026-10-22_1547-editing-tools.md`](2026-10-22_1547-editing-tools.md) — 格式刷、多选分别 / 整体缩放、可嵌套组合 / 解组、移动及缩放智能吸附；18 项逻辑回归与真实浏览器操作验收通过，仅本地改动。
+- [`2026-10-02_1453-production-deployment.md`](2026-10-02_1453-production-deployment.md) — 首次部署 chaos.sakisaki.top：固定云端源码提交、Docker app/Nginx/Certbot，公网验收通过；本地代码未拉取，仅补部署交接协议。
 - [`2026-10-01_2347-save-layer-pick-menu.md`](2026-10-01_2347-save-layer-pick-menu.md) — 保存机制排查：先写工程再生成缩略图，关窗口不丢最后的改动；关联 .chaos 自动写入；主页显示工程库位置；画布点选优先已选图层 + 右键「选择图层」；修复子菜单扫过后全部高亮。
 - [`2026-10-01_1433-product-editor-upgrade.md`](2026-10-01_1433-product-editor-upgrade.md) — 产品化升级：工程库与 .chaos 文件、工程主页、新建预设、画布大小对话框、工具栏与变形、40 个效果与一键风格、生成器与贴纸、字体库、Y3K 调研与实现；删除配方与参考图；本地 Git 基线（未推送）。
 - [`2026-10-01_1352-git-private-github.md`](2026-10-01_1352-git-private-github.md) — 初始化 Git 版本管理，建立 LioraRndr/ChaosCollege 私有仓库并推送 main。

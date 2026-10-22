@@ -30,6 +30,10 @@ Then open `http://127.0.0.1:8080`. On macOS/Linux, `./serve.sh` runs the same co
 - Every layer type (image, text, shape, sticker, generator, brush stroke, window, 3D shatter) supports non-uniform stretch with 8 handles, rotation, flip, perspective / mesh warp, effects, layer styles (shadow, outer glow, sticker outline, frosted backdrop blur), clipping masks, blend modes and the repeater.
 - Clicking where a selected layer lies keeps editing it even if other layers cover it (select a lower layer in the layers panel, then drag it on the canvas); right-click → **选择图层** lists every layer under the cursor.
 - Viewport zoom / pan, smart snapping guides, marquee and multi-select, align / distribute, lock / hide, rename, drag reorder, copy / paste, paste images from the clipboard, drag & drop images / fonts / project files, undo history panel.
+- Format painter (`K`): select a source, then click targets; double-click the tool for continuous painting and press `Esc` to exit. Copies appearance, effects and compatible text / shape styles while keeping target content and position. `Ctrl+Alt+C / V` copies / pastes formatting, including to multiple targets.
+- Multi-selection: drag the shared 8-handle frame or enter a percentage in the inspector. **整体缩放** scales sizes and spacing together; **分别缩放** keeps each object's center fixed. `Shift` preserves proportions, `Alt` resizes from center. Groups stay intact in either mode.
+- **组合 / 解除组合** (`Ctrl+G` / `Ctrl+Shift+G`): persistent, nestable groups move, resize, rotate, align and duplicate together. `Alt`-click a layer row to edit an individual member. Group relationships survive autosave and `.chaos` export / import.
+- Snapping works during both moving and resizing, to canvas / object edges and centers. Pink guides identify the target; the tolerance stays constant on screen at every zoom. Hold `Ctrl/Cmd` during a drag to temporarily bypass snapping.
 - Text: 160+ curated system fonts with availability detection, "read all local fonts" (Chrome / Edge), imported TTF / OTF / WOFF fonts saved to a local font library; weight, italic, tracking, line height, vertical text, arc bend, gradient / chrome / holo fills, double outline, stretch, quick style presets, on-canvas editing.
 
 ## Effects, generators, stickers
@@ -45,6 +49,7 @@ Then open `http://127.0.0.1:8080`. On macOS/Linux, `./serve.sh` runs the same co
 - Tools: `V` `W` `H` `Z` `T` `U` `B` `I`, `G` generators, `E` stickers, hold `Space` to pan
 - `Ctrl/Cmd + Z` / `Ctrl/Cmd + Shift + Z`: undo / redo
 - `Ctrl/Cmd + C / X / V`, `Ctrl/Cmd + D` duplicate, `Delete` remove, `Ctrl/Cmd + A` select all
+- `K` format painter; `Ctrl/Cmd + Alt + C / V` copy / paste format; `Ctrl/Cmd + G` group, `Ctrl/Cmd + Shift + G` ungroup
 - `Ctrl/Cmd + 0` fit, `Ctrl/Cmd + 1` 100%, `Ctrl/Cmd + wheel` zoom
 - `Ctrl/Cmd + S` save, `Ctrl/Cmd + Shift + S` save project file, `Ctrl/Cmd + E` export
 - Full list: **帮助 → 快捷键**

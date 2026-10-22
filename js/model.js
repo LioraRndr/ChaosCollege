@@ -192,6 +192,7 @@
       name: name || TYPE_NAMES[type] || '图层',
       visible: true,
       locked: false,
+      groupPath: [],
       x: 0,
       y: 0,
       w: 300,
@@ -213,6 +214,7 @@
     const type = TYPE_DEFAULTS[raw?.type] ? raw.type : 'shape';
     const layer = { ...baseLayer(type, raw?.name), ...TYPE_DEFAULTS[type](), ...(raw || {}) };
     layer.type = type;
+    layer.groupPath = [...new Set((Array.isArray(raw?.groupPath) ? raw.groupPath : []).filter((id) => typeof id === 'string' && id.length > 0))];
     layer.repeater = { ...defaultRepeater(), ...(raw?.repeater || {}) };
     const style = defaultStyle();
     const rawStyle = raw?.style || {};

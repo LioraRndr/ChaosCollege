@@ -1004,6 +1004,19 @@ input:focus-visible,
   background: #09090b;
 }
 
+.multi-resize-controls {
+  padding: 10px 0;
+  margin: 10px 0;
+  border-top: 1px solid var(--line, #303036);
+  border-bottom: 1px solid var(--line, #303036);
+}
+
+.selection-size { font-variant-numeric: tabular-nums; color: var(--muted, #aaa); margin: 6px 0 10px; }
+.scale-entry { align-items: center; justify-content: space-between; }
+.scale-entry label { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.scale-entry input { width: 72px; padding: 6px; border: 1px solid #38383d; border-radius: 4px; background: #151518; color: #eee; }
+.group-badge { color: var(--accent, #d7ff2f); }
+
 .options-bar {
   display: flex;
   align-items: center;

@@ -24,11 +24,14 @@
     { id: 'shape', name: '形状', key: 'U', icon: 'shape' },
     { id: 'brush', name: '笔刷', key: 'B', icon: 'brush' },
     { id: 'eyedropper', name: '吸管', key: 'I', icon: 'eyedropper' },
+    { id: 'format', name: '格式刷', key: 'K', icon: 'format' },
   ];
 
   function setTool(tool) {
     if (!TOOLS.some((item) => item.id === tool)) return;
     if (state.editingTextId && tool !== 'text') App.finishTextEdit(true);
+    if (tool === 'format' && state.tool !== 'format') App.startFormatPainter();
+    if (tool !== 'format') state.formatPainter = null;
     state.tool = tool;
     state.hover = null;
     App.renderToolrail?.();
@@ -63,7 +66,7 @@
   ];
 
   function handlesFor(layer) {
-    if (!layer || layer.locked || !layer.visible) return [];
+    if (!layer || layer.locked || !layer.visible || (layer.type !== 'selection' && App.isLayerLocked(layer))) return [];
     const handles = [];
     if (state.tool === 'select') {
       const small = layer.w * state.view.zoom < 24 || layer.h * state.view.zoom < 24;
@@ -107,8 +110,8 @@
   }
 
   function handleAt(screen) {
-    if (state.selection.length !== 1) return null;
-    const layer = App.primaryLayer();
+    if (state.selection.length > 1 && state.tool !== 'select') return null;
+    const layer = state.selection.length > 1 ? App.selectionBoxLayer() : App.primaryLayer();
     const handles = handlesFor(layer);
     let best = null;
     let bestDistance = HANDLE_HIT;
@@ -146,7 +149,7 @@
     else if (tool === 'zoom') el.style.cursor = 'zoom-in';
     else if (tool === 'text') el.style.cursor = 'text';
     else if (tool === 'shape' || tool === 'brush') el.style.cursor = 'crosshair';
-    else if (tool === 'eyedropper') el.style.cursor = 'copy';
+    else if (tool === 'eyedropper' || tool === 'format') el.style.cursor = 'copy';
     else if (screen) {
       const hit = handleAt(screen);
       if (hit) el.style.cursor = cursorForHandle(hit.layer, hit.handle);
@@ -156,52 +159,7 @@
 
   /* ---------------- snapping ---------------- */
 
-  function snapTargets(excludeIds) {
-    const doc = state.doc;
-    const xs = [0, doc.width / 2, doc.width];
-    const ys = [0, doc.height / 2, doc.height];
-    doc.layers.forEach((layer) => {
-      if (!layer.visible || excludeIds.has(layer.id)) return;
-      const box = App.layerAABB(layer);
-      xs.push(box.minX, (box.minX + box.maxX) / 2, box.maxX);
-      ys.push(box.minY, (box.minY + box.maxY) / 2, box.maxY);
-    });
-    return { xs, ys };
-  }
-
-  function snapBox(box, targets) {
-    const threshold = 6 / state.view.zoom;
-    const guides = [];
-    let dx = 0;
-    let dy = 0;
-    let bestX = threshold;
-    let bestY = threshold;
-    let guideX = null;
-    let guideY = null;
-    [box.minX, (box.minX + box.maxX) / 2, box.maxX].forEach((value) => {
-      targets.xs.forEach((target) => {
-        const distance = Math.abs(target - value);
-        if (distance < bestX) {
-          bestX = distance;
-          dx = target - value;
-          guideX = target;
-        }
-      });
-    });
-    [box.minY, (box.minY + box.maxY) / 2, box.maxY].forEach((value) => {
-      targets.ys.forEach((target) => {
-        const distance = Math.abs(target - value);
-        if (distance < bestY) {
-          bestY = distance;
-          dy = target - value;
-          guideY = target;
-        }
-      });
-    });
-    if (guideX != null) guides.push({ axis: 'x', pos: guideX });
-    if (guideY != null) guides.push({ axis: 'y', pos: guideY });
-    return { dx, dy, guides };
-  }
+  const { snapTargets, snapBox } = App;
 
   /* ---------------- pointer ---------------- */
 
@@ -235,6 +193,9 @@
         return;
       case 'eyedropper':
         pickColor(screen);
+        return;
+      case 'format':
+        App.paintFormatAt(App.hitTest(point));
         return;
       case 'text': {
         const hit = App.hitTest(point, { preferSelected: true });
@@ -275,6 +236,10 @@
         before,
         startLayer: U.deepCopy(layer),
         startAngle: Math.atan2(point.y - layer.y, point.x - layer.x),
+        multi: layer.type === 'selection',
+        starts: layer.type === 'selection' ? U.deepCopy(App.selectedLayers()) : null,
+        resizeMode: App.resizeMode(),
+        targets: state.opts.snap ? snapTargets(new Set(state.selection)) : null,
       };
       if (mode === 'resize') state.interacting = 'resize';
       capture(event);
@@ -296,20 +261,24 @@
       App.select(hit.id, { toggle: true });
       return;
     }
-    if (!state.selection.includes(hit.id)) state.selection = [hit.id];
+    if (!state.selection.includes(hit.id)) state.selection = App.expandSelection([hit.id]);
     const before = App.snapshot();
     if (event.altKey) {
       /* alt-drag duplicates the selection and drags the copies */
       const copies = [];
-      App.selectedLayers().forEach((layer) => {
-        const copy = App.cloneLayer(layer, 0);
+      const groups = new Map();
+      const originals = state.doc.layers.filter((l) => state.selection.includes(l.id));
+      const insertion = Math.max(...originals.map((l) => state.doc.layers.indexOf(l))) + 1;
+      const clones = originals.map((layer) => {
+        const copy = App.cloneLayer(layer, 0, groups);
         copy.name = `${layer.name} 副本`;
-        state.doc.layers.splice(state.doc.layers.indexOf(layer) + 1, 0, copy);
         copies.push(copy.id);
+        return copy;
       });
+      state.doc.layers.splice(insertion, 0, ...clones);
       state.selection = copies;
     }
-    const moving = App.selectedLayers().filter((layer) => !layer.locked);
+    const moving = App.editableSelection();
     const ids = new Set(moving.map((layer) => layer.id));
     state.pointer = {
       ...base,
@@ -339,7 +308,7 @@
     App.renderCursorPos?.(point);
     const pointer = state.pointer;
     if (!pointer || pointer.id !== event.pointerId) {
-      const hover = ['select', 'transform', 'text'].includes(state.tool) ? App.hitTest(point, { preferSelected: true }) : null;
+      const hover = ['select', 'transform', 'text', 'format'].includes(state.tool) ? App.hitTest(point, { preferSelected: state.tool !== 'format' }) : null;
       if ((hover?.id || null) !== (state.hover?.id || null)) {
         state.hover = hover;
         App.requestRender('overlay');
@@ -394,14 +363,15 @@
     if (!pointer.changed) return;
     let dx = point.x - pointer.startDoc.x;
     let dy = point.y - pointer.startDoc.y;
+    const axes = { x: true, y: true };
     if (event.shiftKey) {
-      if (Math.abs(dx) > Math.abs(dy)) dy = 0;
-      else dx = 0;
+      if (Math.abs(dx) > Math.abs(dy)) { dy = 0; axes.y = false; }
+      else { dx = 0; axes.x = false; }
     }
     state.guides = [];
     if (pointer.targets && !(event.ctrlKey || event.metaKey) && pointer.box) {
       const box = { minX: pointer.box.minX + dx, maxX: pointer.box.maxX + dx, minY: pointer.box.minY + dy, maxY: pointer.box.maxY + dy };
-      const snap = snapBox(box, pointer.targets);
+      const snap = snapBox(box, pointer.targets, axes);
       dx += snap.dx;
       dy += snap.dy;
       state.guides = snap.guides;
@@ -417,11 +387,61 @@
   }
 
   function resizeDrag(pointer, point, event) {
-    const layer = App.layerById(pointer.layerId);
+    if (!pointer.changed) return;
     const start = pointer.startLayer;
-    if (!layer) return;
-    const local = App.docToLocal(start, point.x, point.y);
+    const layer = pointer.multi ? null : App.layerById(pointer.layerId);
+    if (!pointer.multi && !layer) return;
     const { hx, hy } = pointer.handle;
+    const origin = App.localToDoc(start, hx * start.w / 2, hy * start.h / 2);
+    const effective = { x: origin.x + point.x - pointer.startDoc.x, y: origin.y + point.y - pointer.startDoc.y };
+    const computeRaw = (p) => {
+      const resized = resizeGeometry(start, pointer.handle, p, event);
+      let box;
+      let handle;
+      if (pointer.multi) {
+        const sx = resized.w / start.w;
+        const sy = resized.h / start.h;
+        const anchor = resizeAnchor(start, pointer.handle, event.altKey);
+        box = App.unionAABB(App.scaledLayers(pointer.starts, sx, sy, anchor, pointer.resizeMode).map(App.layerAABB));
+        handle = { x: hx < 0 ? box.minX : hx > 0 ? box.maxX : (box.minX + box.maxX) / 2,
+          y: hy < 0 ? box.minY : hy > 0 ? box.maxY : (box.minY + box.maxY) / 2 };
+      } else {
+        box = App.layerAABB(resized);
+        handle = App.localToDoc(resized, hx * resized.w / 2, hy * resized.h / 2);
+      }
+      return { resized, box, handle };
+    };
+    const compute = (p) => {
+      if (!pointer.multi || pointer.resizeMode !== 'individual') return computeRaw(p);
+      const constrainedAxis = event.shiftKey
+        ? (!hx ? 'y' : !hy ? 'x' : Math.abs(p.x - origin.x) / start.w >= Math.abs(p.y - origin.y) / start.h ? 'x' : 'y') : null;
+      return App.matchResizeHandle(p, computeRaw, { x: !!hx, y: !!hy }, constrainedAxis);
+    };
+    state.guides = [];
+    let geometry = compute(effective);
+    if (pointer.targets && !(event.ctrlKey || event.metaKey)) {
+      const snap = App.snapResize(effective, pointer.targets, compute);
+      geometry = snap.geometry;
+      state.guides = snap.guides;
+    }
+    if (pointer.multi) {
+      App.scaleLayers(pointer.starts, geometry.resized.w / start.w, geometry.resized.h / start.h,
+        resizeAnchor(start, pointer.handle, event.altKey), pointer.resizeMode);
+    } else {
+      Object.assign(layer, { w: geometry.resized.w, h: geometry.resized.h, x: geometry.resized.x, y: geometry.resized.y });
+      if (layer.type === 'text') App.stretchFromBox(layer);
+    }
+    App.requestRender();
+    App.renderTransformFields?.();
+  }
+
+  function resizeAnchor(start, handle, symmetric) {
+    return { x: start.x - (symmetric ? 0 : handle.hx * start.w / 2), y: start.y - (symmetric ? 0 : handle.hy * start.h / 2) };
+  }
+
+  function resizeGeometry(start, handle, point, event) {
+    const local = App.docToLocal(start, point.x, point.y);
+    const { hx, hy } = handle;
     const symmetric = event.altKey;
     let newW = start.w;
     let newH = start.h;
@@ -436,8 +456,13 @@
       } else if (hx) newH = newW / ratio;
       else newW = newH * ratio;
     }
-    newW = Math.max(2, newW);
-    newH = Math.max(2, newH);
+    if (event.shiftKey) {
+      const scale = Math.max(newW / start.w, newH / start.h, 2 / start.w, 2 / start.h);
+      newW = start.w * scale; newH = start.h * scale;
+    } else {
+      newW = Math.max(2, newW);
+      newH = Math.max(2, newH);
+    }
     let cx = 0;
     let cy = 0;
     if (!symmetric) {
@@ -445,24 +470,27 @@
       if (hy) cy = -hy * (start.h / 2) + hy * (newH / 2);
     }
     const center = App.localToDoc(start, cx, cy);
-    layer.w = newW;
-    layer.h = newH;
-    layer.x = center.x;
-    layer.y = center.y;
-    if (layer.type === 'text') App.stretchFromBox(layer);
-    pointer.changed = true;
-    App.requestRender();
-    App.renderTransformFields?.();
+    return { ...start, w: newW, h: newH, x: center.x, y: center.y };
   }
 
   function rotateDrag(pointer, point, event) {
-    const layer = App.layerById(pointer.layerId);
-    if (!layer) return;
-    const angle = Math.atan2(point.y - layer.y, point.x - layer.x);
+    const layer = pointer.multi ? pointer.startLayer : App.layerById(pointer.layerId);
+    if (!layer || !pointer.changed) return;
+    const angle = Math.atan2(point.y - pointer.startLayer.y, point.x - pointer.startLayer.x);
     let rotation = pointer.startLayer.rotation + ((angle - pointer.startAngle) * 180) / Math.PI;
     rotation = ((rotation + 540) % 360) - 180;
     if (event.shiftKey) rotation = Math.round(rotation / 15) * 15;
-    layer.rotation = rotation;
+    if (pointer.multi) {
+      const radians = rotation * Math.PI / 180;
+      pointer.starts.forEach((start) => {
+        const target = App.layerById(start.id);
+        const dx = start.x - layer.x;
+        const dy = start.y - layer.y;
+        target.x = layer.x + dx * Math.cos(radians) - dy * Math.sin(radians);
+        target.y = layer.y + dx * Math.sin(radians) + dy * Math.cos(radians);
+        target.rotation = start.rotation + rotation;
+      });
+    } else layer.rotation = rotation;
     pointer.changed = true;
     App.requestRender();
     App.renderTransformFields?.();
@@ -533,7 +561,7 @@
       const box = App.layerAABB(layer);
       return box.maxX >= rect.minX && box.minX <= rect.maxX && box.maxY >= rect.minY && box.minY <= rect.maxY;
     }).map((layer) => layer.id);
-    state.selection = [...new Set([...pointer.baseSelection, ...hits])];
+    state.selection = App.expandSelection([...new Set([...pointer.baseSelection, ...hits])]);
     App.requestRender('overlay');
   }
 
@@ -548,6 +576,10 @@
       dom.viewport.releasePointerCapture(event.pointerId);
     } catch (error) {
       /* ignore */
+    }
+    if (event.type === 'pointercancel') {
+      if (pointer.before) App.restore(pointer.before);
+      App.renderAll(); updateCursor(); return;
     }
     switch (pointer.mode) {
       case 'move':
@@ -757,6 +789,18 @@
       return;
     }
     if (typing) return;
+    if (command && event.altKey && (key === 'c' || key === 'v')) {
+      event.preventDefault();
+      if (key === 'c') { if (App.copyFormat()) ui.toast('格式已复制 · Ctrl+Alt+V 应用'); }
+      else App.applyFormat(state.formatClipboard);
+      return;
+    }
+    if (command && !event.altKey && key === 'g') {
+      event.preventDefault();
+      if (event.shiftKey) App.ungroupSelection();
+      else App.groupSelection();
+      return;
+    }
     if (command && key === 'z') {
       event.preventDefault();
       if (event.shiftKey) App.redo();
@@ -836,6 +880,7 @@
     }
     if (event.key === 'Escape') {
       if (state.pointer) return;
+      if (state.tool === 'format') { setTool('select'); return; }
       if (state.selection.length) App.select([]);
       App.closeFlyout?.();
       return;
@@ -1051,6 +1096,24 @@
       drawPolygon(ctx, [[box.minX, box.minY], [box.maxX, box.minY], [box.maxX, box.maxY], [box.minX, box.maxY]]);
       ctx.stroke();
       ctx.setLineDash([]);
+      const frame = state.tool === 'select' ? App.selectionBoxLayer(selected) : null;
+      if (frame && !state.editingTextId) {
+        const handles = handlesFor(frame);
+        const rotate = handles.find((h) => h.kind === 'rotate');
+        ctx.strokeStyle = ACCENT;
+        ctx.fillStyle = '#0b0b0d';
+        ctx.lineWidth = 1.4;
+        if (rotate) {
+          ctx.beginPath(); ctx.moveTo(rotate.anchor.x, rotate.anchor.y); ctx.lineTo(rotate.x, rotate.y); ctx.stroke();
+        }
+        handles.forEach((h) => drawHandle(ctx, h.x, h.y, h.kind));
+        if (state.pointer?.multi) {
+          const p = App.docToScreen(frame.x, frame.y);
+          const pointer = state.pointer;
+          const label = pointer.mode === 'rotate' ? '整体旋转' : `${pointer.resizeMode === 'individual' ? '分别' : '整体'} · ${Math.round(frame.w)} × ${Math.round(frame.h)}`;
+          drawTag(ctx, p.x, p.y, label);
+        }
+      }
     }
 
     if (selected.length === 1 && !state.editingTextId) {
@@ -1137,15 +1200,26 @@
         ctx.beginPath();
         if (guide.axis === 'x') {
           const x = Math.round(App.docToScreen(guide.pos, 0).x) + 0.5;
-          ctx.moveTo(x, 0);
-          ctx.lineTo(x, state.view.height);
+          const a = App.docToScreen(0, guide.from ?? 0).y;
+          const b = App.docToScreen(0, guide.to ?? state.doc.height).y;
+          ctx.moveTo(x, a - 10); ctx.lineTo(x, b + 10);
+          ctx.moveTo(x - 4, a); ctx.lineTo(x + 4, a);
+          ctx.moveTo(x - 4, b); ctx.lineTo(x + 4, b);
         } else {
           const y = Math.round(App.docToScreen(0, guide.pos).y) + 0.5;
-          ctx.moveTo(0, y);
-          ctx.lineTo(state.view.width, y);
+          const a = App.docToScreen(guide.from ?? 0, 0).x;
+          const b = App.docToScreen(guide.to ?? state.doc.width, 0).x;
+          ctx.moveTo(a - 10, y); ctx.lineTo(b + 10, y);
+          ctx.moveTo(a, y - 4); ctx.lineTo(a, y + 4);
+          ctx.moveTo(b, y - 4); ctx.lineTo(b, y + 4);
         }
         ctx.stroke();
       });
+      const guide = state.guides[0];
+      if (guide.label && state.pointer) {
+        const p = App.docToScreen(state.pointer.startDoc.x, state.pointer.startDoc.y);
+        drawTag(ctx, U.clamp(p.x, 100, state.view.width - 100), U.clamp(p.y - 28, 28, state.view.height - 28), guide.label);
+      }
     }
 
     const pointer = state.pointer;

@@ -22,6 +22,7 @@
       brush: { style: 'round', size: 12, smooth: 55 },
       warpMode: 'distort',
       snap: true,
+      multiResize: 'overall',
       grid: false,
       gridSize: 50,
       fg: '#111111',
@@ -357,6 +358,8 @@
     renderer.clear();
     state.doc = M.normalizeDoc(doc);
     state.selection = [];
+    state.formatPainter = null;
+    if (state.tool === 'format') state.tool = 'select';
     state.history = [];
     state.future = [];
     state.dirty = false;
@@ -632,7 +635,7 @@
     const hits = [];
     for (let i = layers.length - 1; i >= 0; i -= 1) {
       const layer = layers[i];
-      if (!layer.visible || (layer.locked && !includeLocked)) continue;
+      if (!layer.visible || ((App.isLayerLocked?.(layer) ?? layer.locked) && !includeLocked)) continue;
       if (CC.warp.pointInPolygon(layerPolygon(layer), point.x, point.y)) hits.push(layer);
     }
     return hits;
@@ -664,11 +667,13 @@
     return layers.length ? layers[layers.length - 1] : null;
   }
 
-  function select(ids, { additive = false, toggle = false } = {}) {
-    const list = Array.isArray(ids) ? ids : ids ? [ids] : [];
+  function select(ids, { additive = false, toggle = false, individual = false } = {}) {
+    let list = Array.isArray(ids) ? ids : ids ? [ids] : [];
+    if (!individual && App.expandSelection) list = App.expandSelection(list);
     if (toggle) {
       const set = new Set(state.selection);
-      list.forEach((id) => (set.has(id) ? set.delete(id) : set.add(id)));
+      const remove = list.every((id) => set.has(id));
+      list.forEach((id) => (remove ? set.delete(id) : set.add(id)));
       state.selection = [...set];
     } else if (additive) state.selection = [...new Set([...state.selection, ...list])];
     else state.selection = list;
@@ -749,16 +754,17 @@
       const index = state.doc.layers.findIndex((layer) => removing.has(layer.id));
       state.doc.layers = state.doc.layers.filter((layer) => !removing.has(layer.id));
       const next = state.doc.layers[Math.min(Math.max(0, index - 1), state.doc.layers.length - 1)];
-      state.selection = next ? [next.id] : [];
+      state.selection = next ? App.expandSelection([next.id]) : [];
     });
   }
 
-  function cloneLayer(layer, offset = 24) {
+  function cloneLayer(layer, offset = 24, groups = new Map()) {
     const copy = U.deepCopy(layer);
     copy.id = U.uid(layer.type.slice(0, 2).toUpperCase());
     copy.effects = (copy.effects || []).map((effect) => ({ ...effect, id: U.uid('FX') }));
     copy.x += offset;
     copy.y += offset;
+    App.remapGroupPath?.(copy, groups);
     return M.normalizeLayer(copy);
   }
 
@@ -767,19 +773,22 @@
     if (!layers.length) return;
     change('复制图层', () => {
       const copies = [];
-      layers.forEach((layer) => {
-        const copy = cloneLayer(layer);
+      const groups = new Map();
+      const ordered = state.doc.layers.filter((l) => state.selection.includes(l.id));
+      const index = Math.max(...ordered.map((l) => state.doc.layers.indexOf(l))) + 1;
+      const clones = ordered.map((layer) => {
+        const copy = cloneLayer(layer, 24, groups);
         copy.name = `${layer.name} 副本`;
-        const index = state.doc.layers.indexOf(layer);
-        state.doc.layers.splice(index + 1, 0, copy);
         copies.push(copy.id);
+        return copy;
       });
+      state.doc.layers.splice(index, 0, ...clones);
       state.selection = copies;
     });
   }
 
   function copySelection(cut = false) {
-    const layers = selectedLayers();
+    const layers = state.doc?.layers.filter((l) => state.selection.includes(l.id)) || [];
     if (!layers.length) return false;
     state.clipboard = { layers: U.deepCopy(layers), docId: state.doc.id, time: Date.now(), pasteCount: 0 };
     if (cut) deleteSelection();
@@ -794,10 +803,12 @@
     const missing = clip.layers.filter((layer) => layer.type === 'image' && !state.assets.has(layer.assetId));
     change('粘贴图层', () => {
       const ids = [];
+      const groups = new Map();
       clip.layers.forEach((layer) => {
-        const copy = cloneLayer(layer, clip.docId === state.doc.id ? 24 * clip.pasteCount : 0);
+        const copy = cloneLayer(layer, clip.docId === state.doc.id ? 24 * clip.pasteCount : 0, groups);
         insertLayer(copy);
         ids.push(copy.id);
+        state.selection = [copy.id];
       });
       state.selection = ids;
     });
@@ -834,13 +845,16 @@
     if (draggedId === targetId) return;
     change('调整图层顺序', () => {
       const visual = [...state.doc.layers].reverse();
-      const from = visual.findIndex((layer) => layer.id === draggedId);
-      if (from < 0) return;
-      const [moved] = visual.splice(from, 1);
-      let index = targetId ? visual.findIndex((layer) => layer.id === targetId) + (before ? 0 : 1) : visual.length;
+      const ids = new Set(App.expandSelection([draggedId]));
+      if (ids.has(targetId)) return;
+      const moved = visual.filter((l) => ids.has(l.id));
+      const rest = visual.filter((l) => !ids.has(l.id));
+      const targetIds = new Set(App.expandSelection(targetId ? [targetId] : []));
+      const indices = rest.map((l, i) => targetIds.has(l.id) ? i : -1).filter((i) => i >= 0);
+      let index = indices.length ? (before ? Math.min(...indices) : Math.max(...indices) + 1) : rest.length;
       if (index < 0) index = visual.length;
-      visual.splice(index, 0, moved);
-      state.doc.layers = visual.reverse();
+      rest.splice(index, 0, ...moved);
+      state.doc.layers = rest.reverse();
     });
   }
 
@@ -848,17 +862,27 @@
     const layer = layerById(id);
     if (!layer) return;
     change(label, () => {
-      layer[key] = !layer[key];
+      const value = !layer[key];
+      const targets = ['visible', 'locked'].includes(key) ? App.expandSelection([id]).map(layerById) : [layer];
+      targets.forEach((target) => { target[key] = value; });
     });
   }
 
   function flipSelection(axis) {
-    const layers = selectedLayers();
+    const layers = App.editableSelection();
     if (!layers.length) return;
     change(axis === 'x' ? '水平翻转' : '垂直翻转', () => {
-      layers.forEach((layer) => {
-        if (axis === 'x') layer.flipX = !layer.flipX;
-        else layer.flipY = !layer.flipY;
+      App.selectionUnits(layers).forEach((unit) => {
+        const box = unionAABB(unit.map(layerAABB));
+        unit.forEach((layer) => {
+          if (unit.length > 1) {
+            if (axis === 'x') layer.x = box.minX + box.maxX - layer.x;
+            else layer.y = box.minY + box.maxY - layer.y;
+            layer.rotation = -layer.rotation;
+          }
+          if (axis === 'x') layer.flipX = !layer.flipX;
+          else layer.flipY = !layer.flipY;
+        });
       });
     });
   }
@@ -869,33 +893,36 @@
   }
 
   function alignSelection(mode) {
-    const layers = selectedLayers().filter((layer) => !layer.locked);
+    const layers = App.editableSelection();
     if (!layers.length) return;
-    const target = layers.length === 1
+    const units = App.selectionUnits(layers);
+    const target = units.length === 1
       ? { minX: 0, minY: 0, maxX: state.doc.width, maxY: state.doc.height }
       : unionAABB(layers.map(layerAABB));
     const names = { left: '左对齐', hcenter: '水平居中', right: '右对齐', top: '顶对齐', vcenter: '垂直居中', bottom: '底对齐' };
     change(names[mode] || '对齐', () => {
-      layers.forEach((layer) => {
-        const box = layerAABB(layer);
-        if (mode === 'left') translateLayer(layer, target.minX - box.minX, 0);
-        if (mode === 'right') translateLayer(layer, target.maxX - box.maxX, 0);
-        if (mode === 'hcenter') translateLayer(layer, (target.minX + target.maxX) / 2 - (box.minX + box.maxX) / 2, 0);
-        if (mode === 'top') translateLayer(layer, 0, target.minY - box.minY);
-        if (mode === 'bottom') translateLayer(layer, 0, target.maxY - box.maxY);
-        if (mode === 'vcenter') translateLayer(layer, 0, (target.minY + target.maxY) / 2 - (box.minY + box.maxY) / 2);
+      units.forEach((unit) => {
+        const box = unionAABB(unit.map(layerAABB));
+        let dx = 0; let dy = 0;
+        if (mode === 'left') dx = target.minX - box.minX;
+        if (mode === 'right') dx = target.maxX - box.maxX;
+        if (mode === 'hcenter') dx = (target.minX + target.maxX - box.minX - box.maxX) / 2;
+        if (mode === 'top') dy = target.minY - box.minY;
+        if (mode === 'bottom') dy = target.maxY - box.maxY;
+        if (mode === 'vcenter') dy = (target.minY + target.maxY - box.minY - box.maxY) / 2;
+        unit.forEach((layer) => translateLayer(layer, dx, dy));
       });
     });
   }
 
   function distributeSelection(axis) {
-    const layers = selectedLayers().filter((layer) => !layer.locked);
-    if (layers.length < 3) {
+    const units = App.selectionUnits(App.editableSelection());
+    if (units.length < 3) {
       ui.toast('分布需要至少选中 3 个图层');
       return;
     }
     change(axis === 'x' ? '水平分布' : '垂直分布', () => {
-      const items = layers.map((layer) => ({ layer, box: layerAABB(layer) }));
+      const items = units.map((unit) => ({ unit, box: unionAABB(unit.map(layerAABB)) }));
       const key = axis === 'x' ? (item) => (item.box.minX + item.box.maxX) / 2 : (item) => (item.box.minY + item.box.maxY) / 2;
       items.sort((a, b) => key(a) - key(b));
       const first = key(items[0]);
@@ -903,13 +930,13 @@
       items.forEach((item, index) => {
         const target = first + ((last - first) * index) / (items.length - 1);
         const delta = target - key(item);
-        translateLayer(item.layer, axis === 'x' ? delta : 0, axis === 'x' ? 0 : delta);
+        item.unit.forEach((layer) => translateLayer(layer, axis === 'x' ? delta : 0, axis === 'x' ? 0 : delta));
       });
     });
   }
 
   function nudge(dx, dy) {
-    const layers = selectedLayers().filter((layer) => !layer.locked);
+    const layers = App.editableSelection();
     if (!layers.length) return;
     change('微移', () => layers.forEach((layer) => translateLayer(layer, dx, dy)), { coalesce: true });
   }

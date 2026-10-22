@@ -9,6 +9,9 @@
   /* ---------------- icons ---------------- */
 
   const ICONS = {
+    format: '<path d="M3 2.5h9v4H3zM12 4.5h1.5V9H8v4.5H6V8h5.5V6.5"/>',
+    group: '<path stroke-dasharray="2 1" d="M1.5 1.5h13v13h-13z"/><rect x="4" y="4" width="4" height="4"/><rect x="8" y="8" width="4" height="4"/>',
+    ungroup: '<rect x="1.5" y="1.5" width="5" height="5"/><rect x="9.5" y="9.5" width="5" height="5"/><path d="m5 11-3 3m0-3v3h3m6-9 3-3m-3 0h3v3"/>',
     image: '<rect x="2" y="3" width="12" height="10" rx="1.6"/><circle cx="5.6" cy="6.4" r="1.1"/><path d="M2.6 11.8 5.8 9l2.3 2 2.2-2.4 3.1 3.2"/>',
     text: '<path d="M3.2 4.6V3.2h9.6v1.4M8 3.2v9.6M6 12.8h4"/>',
     window: '<rect x="2" y="3.4" width="12" height="9.4" rx="1.6"/><path d="M2 6h12"/><path d="M3.8 4.7h.01M5.6 4.7h.01"/>',

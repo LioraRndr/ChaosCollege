@@ -41,7 +41,14 @@
 
 ## 项目边界
 
-- 这是一个无需安装或构建的浏览器端静态平面编辑器；Datamosh 只生成静态单帧视觉，不处理视频。
+- 本地 checkout 是无需安装或构建的浏览器端静态平面编辑器；Datamosh 只生成静态单帧视觉，不处理视频。线上云端服务来自另一个已核验的源码快照，部署事实见下述服务器交接，不要把本地代码状态当作线上状态。
 - 不要把 `samples.js` 中的大段 Base64 图片数据直接打印到日志或文档。
 - 未经用户明确授权，不初始化 Git、不引入包管理器、不改成框架项目。
 - 代码结构、运行方式和当前限制以 `docs/PROJECT_CONTEXT.md` 为准。
+
+## 服务器部署交接
+
+- 服务器维护目录 `D:\R_Program\服务器` 是部署事实真源。涉及部署、线上配置、域名、接口、服务器文件或版本的任务，启动时先读 [STATE.md](D:/R_Program/服务器/projects/chaos-college/STATE.md) 和 [OUTBOX.md](D:/R_Program/服务器/projects/chaos-college/OUTBOX.md)，再读 [运维手册](D:/R_Program/服务器/scripts/chaos-college/README.md)。
+- 此类 session 收尾时向 `D:\R_Program\服务器\projects\chaos-college\INBOX\YYYY-MM-DD_HHMM_主题.md` 写简报：改了什么、为什么、验证结果、服务器待办。由服务器维护 session 合并归档；项目侧不要直接改 STATE/CURRENT/CHANGELOG。纯本地开发可跳过投递。
+- 线上地址 <https://chaos.sakisaki.top/>；首次版本为 `35f61230d2c4d31c62fd9c971bd24adb252b6e08` 的源码快照，无 `.git`。本地 checkout 未在部署 session 拉取或升级。
+- 保留线上 `.env`、`docker-compose.nginx.yml` 与数据卷 `chaos-collage-data`；禁止删除数据卷、运行 down -v 或默认 Caddy Compose。更新前明确数据备份与恢复方案，不读取或归档业务数据库、密码或完整环境变量。

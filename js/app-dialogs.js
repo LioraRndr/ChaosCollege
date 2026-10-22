@@ -922,6 +922,9 @@
       ['视图', '空格拖动平移 · 滚轮平移 · Ctrl+滚轮缩放 · Ctrl+0 适应 · Ctrl+1 100% · Ctrl+= / Ctrl+- 缩放'],
       ['编辑', 'Ctrl+Z 撤销 · Ctrl+Shift+Z / Ctrl+Y 重做 · Ctrl+C / X / V 复制剪切粘贴 · Ctrl+D 复制图层 · Delete 删除 · Ctrl+A 全选 · Esc 取消选择'],
       ['排列', 'Ctrl+] 上移 · Ctrl+[ 下移 · Ctrl+Shift+] 置顶 · Ctrl+Shift+[ 置底 · Ctrl+Alt+G 剪切蒙版 · 方向键微移（Shift ×10）'],
+      ['组合', 'Ctrl+G 组合 · Ctrl+Shift+G 解除组合 · Alt+单击图层列表单独编辑成员 · 组合可嵌套'],
+      ['格式刷', 'K 格式刷 · 双击工具连续刷 · Esc 退出 · Ctrl+Alt+C 复制格式 · Ctrl+Alt+V 粘贴格式'],
+      ['多选缩放', '选区边角柄缩放 · 上方或属性面板切换整体 / 分别缩放 · 属性面板输入倍率 · 组合默认整体缩放'],
       ['变换', '边柄单向拉伸 · 角柄自由拉伸 · Shift 等比 · Alt 以中心 · Shift 旋转吸附 15° · Alt 拖动复制 · Ctrl 拖动关闭吸附'],
       ['文字', 'Enter / 双击编辑选中文字 · Ctrl+Enter 或 Esc 完成编辑'],
       ['文件', 'Ctrl+S 保存 · Ctrl+Shift+S 另存工程文件 · Ctrl+O 打开 · Ctrl+Alt+N 新建 · Ctrl+E 导出 · Ctrl+Shift+E 快速导出 PNG'],
@@ -979,6 +982,9 @@
     const layer = App.primaryLayer();
     const none = !hasLayer || !layer;
     return [
+      { label: '组合对象', icon: 'group', shortcut: 'Ctrl+G', disabled: !App.canGroup(), action: () => App.groupSelection() },
+      { label: '解除组合', icon: 'ungroup', shortcut: 'Ctrl+Shift+G', disabled: !App.canUngroup(), action: () => App.ungroupSelection() },
+      { separator: true },
       { label: '置于顶层', shortcut: 'Ctrl+Shift+]', disabled: none, action: () => App.moveLayers('front') },
       { label: '上移一层', shortcut: 'Ctrl+]', disabled: none, action: () => App.moveLayers('forward') },
       { label: '下移一层', shortcut: 'Ctrl+[', disabled: none, action: () => App.moveLayers('backward') },
@@ -991,7 +997,7 @@
         disabled: none,
         submenu: [['left', '左对齐', 'alignLeft'], ['hcenter', '水平居中', 'alignCenter'], ['right', '右对齐', 'alignRight'], ['top', '顶对齐', 'alignTop'], ['vcenter', '垂直居中', 'alignMiddle'], ['bottom', '底对齐', 'alignBottom']].map(([mode, label, iconName]) => ({ label, icon: iconName, action: () => App.alignSelection(mode) })),
       },
-      { label: '分布', disabled: state.selection.length < 3, submenu: [{ label: '水平分布', icon: 'distH', action: () => App.distributeSelection('x') }, { label: '垂直分布', icon: 'distV', action: () => App.distributeSelection('y') }] },
+      { label: '分布', disabled: App.selectionUnits().length < 3, submenu: [{ label: '水平分布', icon: 'distH', action: () => App.distributeSelection('x') }, { label: '垂直分布', icon: 'distV', action: () => App.distributeSelection('y') }] },
       { separator: true },
       { label: '添加效果', icon: 'fx', disabled: none, submenu: none ? [] : effectSubmenu() },
       { label: '变形预设', icon: 'warp', disabled: none, submenu: none ? [] : App.warpPresetItems() },
@@ -1000,7 +1006,7 @@
       { label: '剪切蒙版', shortcut: 'Ctrl+Alt+G', checked: !!layer?.clip, disabled: none, action: () => App.toggleLayerFlag(layer.id, 'clip', layer.clip ? '取消剪切蒙版' : '创建剪切蒙版') },
       { label: layer?.locked ? '解锁' : '锁定', icon: layer?.locked ? 'unlock' : 'lock', disabled: none, action: () => App.toggleLayerFlag(layer.id, 'locked', layer.locked ? '解锁图层' : '锁定图层') },
       { label: layer?.visible === false ? '显示' : '隐藏', icon: 'eye', disabled: none, action: () => App.toggleLayerFlag(layer.id, 'visible', layer.visible ? '隐藏图层' : '显示图层') },
-      { label: '栅格化图层', icon: 'bake', disabled: none, action: () => App.rasterizeSelection() },
+      { label: '栅格化图层', icon: 'bake', disabled: none || state.selection.length !== 1, action: () => App.rasterizeSelection() },
     ];
   }
 
@@ -1040,6 +1046,10 @@
         { label: '粘贴', shortcut: 'Ctrl+V', disabled: !hasDoc || !state.clipboard, action: () => App.pasteClipboard() },
         { label: '复制图层', icon: 'duplicate', shortcut: 'Ctrl+D', disabled: !hasSel, action: () => App.duplicateSelection() },
         { label: '删除', icon: 'trash', shortcut: 'Delete', disabled: !hasSel, action: () => App.deleteSelection() },
+        { separator: true },
+        { label: '格式刷', icon: 'format', shortcut: 'K', disabled: !hasDoc, action: () => App.setTool('format') },
+        { label: '复制格式', shortcut: 'Ctrl+Alt+C', disabled: !hasSel, action: () => { if (App.copyFormat()) ui.toast('格式已复制'); } },
+        { label: '粘贴格式', shortcut: 'Ctrl+Alt+V', disabled: !hasSel || !state.formatClipboard, action: () => App.applyFormat(state.formatClipboard) },
         { separator: true },
         { label: '全选', shortcut: 'Ctrl+A', disabled: !hasDoc, action: () => App.selectAll() },
         { label: '取消选择', shortcut: 'Esc', disabled: !hasSel, action: () => App.select([]) },
