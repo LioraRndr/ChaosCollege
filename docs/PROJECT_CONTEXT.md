@@ -94,6 +94,6 @@ ChaosCollege/
 
 ## 版本管理
 
-- 远端 `https://github.com/LioraRndr/ChaosCollege`（私有）。`origin/main` 已包含 2026-10-01 产品化升级（截至 `43bbdd7`）。
+- 远端 `https://github.com/LioraRndr/ChaosCollege`。2026-10-22 通过 GitHub API 实测为公开仓库，归属于当前登录账号 `LioraRndr`，当前账号具备 ADMIN 权限；历史“私有”记录已过期。`origin/main` 已包含产品化升级及云端版本。
 - 2026-10-22 启动时本地 main HEAD 为 `0ffa7e1`，已合并 [PR #1](https://github.com/LioraRndr/ChaosCollege/pull/1)。用户授权提交并推送本轮编辑工具至 `codex/editing-tools` 功能分支；核对时 `origin/main` 已为 `f94f904`（含云端版本），本分支仍基于已验收的本地编辑器，不改写远端 main。启动时已有的部署交接文档一并保留。
 - 仓库级 `core.autocrlf=false`，`.gitattributes` 为 `* -text`。
