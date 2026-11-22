@@ -3012,3 +3012,107 @@ body.no-doc .top-actions #exportButton {
   justify-self: center;
   font-size: 11px;
 }
+
+/* ---------------- smart cutout dialog ---------------- */
+
+.cutout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 228px;
+  gap: 16px;
+  align-items: stretch;
+}
+
+.cutout-stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 320px;
+  height: min(58vh, 520px);
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background-color: #2a2a31;
+  background-image: conic-gradient(#3a3a43 25%, transparent 0 50%, #3a3a43 0 75%, transparent 0);
+  background-size: 18px 18px;
+}
+
+.cutout-stage[data-backdrop="dark"] {
+  background: #050506;
+}
+
+.cutout-stage[data-backdrop="light"] {
+  background: #f6f6f2;
+}
+
+.cutout-stage[data-backdrop="pink"] {
+  background: #ff3fb4;
+}
+
+.cutout-stage canvas {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  min-width: 0;
+  min-height: 0;
+  object-fit: contain;
+}
+
+.cutout-overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 12px;
+  padding: 24px;
+  background: rgba(10, 10, 12, 0.74);
+  backdrop-filter: blur(3px);
+  text-align: center;
+}
+
+.cutout-overlay p {
+  max-width: 380px;
+  margin: 0;
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.cutout-bar {
+  width: 240px;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--panel-4);
+}
+
+.cutout-bar i {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--hot);
+  transition: width 160ms linear;
+}
+
+.cutout-side {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.cutout-side .muted-note .link-button {
+  margin-left: 4px;
+  font-size: inherit;
+}
+
+@media (max-width: 720px) {
+  .cutout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cutout-stage {
+    height: 42vh;
+  }
+}

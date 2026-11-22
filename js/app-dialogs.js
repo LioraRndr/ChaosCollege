@@ -732,7 +732,7 @@
 
   async function buildCurrentFile() {
     const doc = state.doc;
-    const used = new Set(doc.layers.map((layer) => layer.assetId).filter(Boolean));
+    const used = new Set(doc.layers.flatMap((layer) => [layer.assetId, layer.cutout?.src]).filter(Boolean));
     const assets = [...state.assets.values()].filter((asset) => used.has(asset.id));
     return CC.storage.buildProjectFile(U.deepCopy(doc), assets, usedFonts(doc));
   }
@@ -920,6 +920,7 @@
           const asset = await App.importImageBlob(files[0], files[0].name.replace(/\.[^.]+$/, ''));
           App.change('替换图片', () => {
             layer.assetId = asset.id;
+            layer.cutout = null;
           });
         } catch (error) {
           ui.toast(error.message || '替换失败', 'error');
@@ -972,6 +973,7 @@
           <p><strong>多处同时编辑</strong>：同一工程在两个窗口或设备上同时修改时，后保存的一方会收到提示，可选择加载云端版本或用当前窗口覆盖。</p>
           <p><strong>空间</strong>：每个账号有空间上限，用量显示在工程主页底部；删除工程会同时删除其中的图片。</p>
           <p><strong>账号</strong>：本站不收集邮箱。忘记密码请联系站点管理员重置；注销账号会永久删除云端的全部数据。</p>
+          <p><strong>智能抠图</strong>：抠图在这台电脑的浏览器里完成，原图不会为了抠图上传；抠好的图片和原图作为工程图片保存到云端。首次使用会从本站下载约 121 MB 的抠图组件并保存在当前浏览器，可在抠图窗口里清除。</p>
         </div>` : `
         <div class="about-text">
           <p><strong>工程库</strong>：所有工程、图片和导入字体都自动保存在当前浏览器配置文件的 IndexedDB 中，不上传任何服务器。</p>
@@ -980,6 +982,7 @@
           <p><strong>关联工程文件</strong>：用「另存为工程文件」保存一次后，该工程就关联了这个 .chaos 文件。之后自动保存会顺带写入它（浏览器重启后需要按一次 Ctrl+S 重新授权）。</p>
           <p><strong>备份与迁移</strong>：用「文件 → 另存为工程文件」导出 .chaos（单个 JSON 文件，内含图片和用到的导入字体），可在其他电脑或浏览器里用「打开工程文件」恢复。清除浏览器数据会删除工程库，请定期导出重要工程。</p>
           <p><strong>持久存储</strong>：可在工程主页底部申请持久存储，降低浏览器在磁盘紧张时自动清理的可能。</p>
+          <p><strong>智能抠图</strong>：抠图完全在本机运行，图片不会上传。首次使用会从公共 CDN（jsDelivr / npmmirror / unpkg、Hugging Face）下载约 121 MB 的运行库和模型，校验后保存在当前浏览器，之后离线可用；可在抠图窗口里清除。抠图前的原图保留在工程里，可随时「恢复原图」。</p>
         </div>`,
       buttons: [{ label: '好的', kind: 'primary', value: true }],
     });
@@ -1034,6 +1037,9 @@
       { label: layer?.locked ? '解锁' : '锁定', icon: layer?.locked ? 'unlock' : 'lock', disabled: none, action: () => App.toggleLayerFlag(layer.id, 'locked', layer.locked ? '解锁图层' : '锁定图层') },
       { label: layer?.visible === false ? '显示' : '隐藏', icon: 'eye', disabled: none, action: () => App.toggleLayerFlag(layer.id, 'visible', layer.visible ? '隐藏图层' : '显示图层') },
       { label: '栅格化图层', icon: 'bake', disabled: none, action: () => App.rasterizeSelection() },
+      { separator: true },
+      { label: '智能抠图…', icon: 'cutout', disabled: none || layer?.type !== 'image', action: () => App.smartCutout() },
+      ...(App.canRestoreCutout?.(layer) ? [{ label: '恢复抠图前的原图', icon: 'reset', action: () => App.restoreCutout() }] : []),
     ];
   }
 
@@ -1195,6 +1201,7 @@
     quickExport,
     saveCommand,
     saveAsFile,
+    buildCurrentFile,
     autoWriteLinkedFile,
     openProjectFile,
     openProjectFromFile,

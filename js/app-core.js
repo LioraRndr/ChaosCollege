@@ -436,6 +436,7 @@
     const referenced = new Set();
     (record.doc.layers || []).forEach((layer) => {
       if (layer.assetId) referenced.add(layer.assetId);
+      if (layer.cutout?.src) referenced.add(layer.cutout.src);
     });
     const kept = [];
     for (const asset of assets) {

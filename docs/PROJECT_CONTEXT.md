@@ -1,6 +1,6 @@
 # CHAOS.COLLAGE 项目上下文
 
-最后核对：2026-10-02 11:35（Asia/Shanghai）
+最后核对：2026-11-22（Asia/Shanghai）
 
 ## 项目定位
 
@@ -22,6 +22,7 @@ CHAOS.COLLAGE 是浏览器端的静态平面设计编辑器，面向高密度 Y2
 - **文字**：163 个分组字体条目并检测本机是否可用；「读取本机全部字体」（Local Font Access，Chrome / Edge）；导入 TTF / OTF / WOFF / WOFF2 到本机字体库（解析字体名，随 `.chaos` 打包）；字重、斜体、字号、行距、字距、对齐、竖排、弧形弯曲、纯色 / 渐变 / 镀铬 / 全息填充、双层描边、横纵拉伸、10 个快速样式（含 Y3K）。
 - **效果**：40 个可叠加、可排序、可开关的效果，分调色 / 印刷像素 / 故障 / 扭曲 / 光效材质 / 风格化六组；18 个一键风格。`Block glitch`（区块故障）与 `Datamosh Frame`（帧感染）是 2026-09-30 用户认可版本的移植，不透明图片逐像素一致；帧感染新增「透明处拖尾叠加」，让文字 / 贴纸保留原形。
 - **生成器与素材**：26 个参数化生成器 + 错误窗口（经典 / XP / Mac / 暗色 / 酸性）、条形码、胶带、纸屑、3D 爆裂 / 尖刺、Y3K 组合（毛玻璃卡片、液态铬星芒 / 爱心、铬金属图腾）；55 个可换色矢量贴纸（Y2K 符号、UI / 电脑、像素）。
+- **智能抠图**（2026-11-17）：图片图层「智能抠图…」（属性面板 / 图层菜单 / 右键）。模型 BiRefNet_lite 512（fp16，MIT，`studioludens/birefnet-lite-512` 固定提交），运行库 ONNX Runtime Web 1.31.1（WebGPU 版 bundle，MIT）；在浏览器 Worker 里运行：适配器支持 `shader-f16` 时用 WebGPU，否则 WebAssembly（跨源隔离时多线程），显卡结果异常时可在窗口里「改用处理器重算」。预览可调边缘位置（收缩 / 扩展）、羽化、预览背景、按住看原图；应用后图层换成抠好的图（照片存 WebP、图形存 PNG），默认裁掉透明边并保持主体位置，`layer.cutout = { src: 原图资源, rect: 保留区域 }` 用于「恢复原图」，也可选择保留原图层。组件见「运行时架构」第 9 条。
 - **导出**：PNG / JPG / WEBP，0.5×–4×，可透明，可只导出选中图层；有 File System Access 时弹出保存对话框，否则下载。
 - **Y3K**：调研与落地对照见 [research/y3k.md](research/y3k.md)。
 
@@ -58,7 +59,10 @@ ChaosCollege/
 │  ├─ app-core.js            # CC.App：状态、历史、资源、自动保存、视图、图层操作
 │  ├─ app-tools.js           # 工具与指针交互、覆盖层、吸附、文字编辑、快捷键、拖放粘贴
 │  ├─ app-panels.js          # 工具栏、选项栏、图层/资源/历史面板、抽屉、属性面板
-│  └─ app-dialogs.js         # 工程主页、新建 / 画布大小 / 导出对话框、菜单、文件读写
+│  ├─ app-dialogs.js         # 工程主页、新建 / 画布大小 / 导出对话框、菜单、文件读写
+│  ├─ cutout-manifest.js     # CC.cutoutManifest：抠图运行库与模型的固定版本、大小、SHA-256、下载地址（服务端读同一 JSON 块）
+│  ├─ cutout.js              # CC.cutout：组件下载 / 校验 / IndexedDB 缓存、推理 Worker、蒙版合成（边缘收缩扩展、羽化）
+│  └─ app-cutout.js          # 智能抠图对话框、应用 / 恢复原图
 ├─ server/chaos_server.py    # 云端服务：静态文件 + API，SQLite（账号 / 会话 / 索引）+ 文件（工程 JSON、图片、缩略图、字体），管理命令 admin
 ├─ Dockerfile / docker-compose.yml / .env.example / .dockerignore
 ├─ deploy/                   # Caddyfile；docker-compose.http.yml（无域名 HTTP 试用）
@@ -79,6 +83,7 @@ ChaosCollege/
 - 其他：直接打开 `index.html`，或 `python -m http.server 8080` 后访问 `http://127.0.0.1:8080`。注意两种方式是不同来源，工程库互不可见。
 - 语法检查：`for f in js/*.js app.js; do node --check "$f"; done`
 - 浏览器回归：[experiments/editor-upgrade-2026-10-01](experiments/editor-upgrade-2026-10-01/README.md) 中的 playwright-core 脚本（依赖装在 /tmp，不进入项目）；云端版见 [experiments/cloud-deploy-2026-10-02](experiments/cloud-deploy-2026-10-02/README.md)。
+- 智能抠图回归：[experiments/smart-cutout-2026-11-17](experiments/smart-cutout-2026-11-17/README.md)（t13 本机版、t14 云端版，需联网下载组件）。
 - 云端版本地运行：`python3 server/chaos_server.py`（默认 127.0.0.1:8080，数据在 `./data/`，已在 .gitignore）；`python3 -m py_compile server/chaos_server.py` 做语法检查。
 
 ## 运行时架构
@@ -91,7 +96,8 @@ ChaosCollege/
 6. 剪切蒙版：一个基础图层加上方连续的 `clip` 图层组成一组，在临时画布中以基础图层的 alpha 裁切；毛玻璃样式把当前已绘制内容模糊后裁进图层形状。
 7. 历史：每步保存文档 JSON 快照，最多 100 步，历史面板可跳转。任何改动标记为未保存，900 ms 防抖后写入 IndexedDB：先写工程文档（沿用旧缩略图），再异步生成 360px WebP 缩略图单独更新，所以 pagehide / 切到后台时的保存能在窗口关闭前开始写入。工程关联了 `.chaos` 文件且写权限已授予时，保存后 4 s 防抖顺带写入该文件。
 8. 云端模式：`app.js` 启动时请求 `/api/config`（只在 http/https 下），存在则先登录（或选择本机试用），登录后 `CC.cloud.enable()` 用 API 实现覆盖 `CC.storage` 的工程 / 资源 / 缩略图 / 字体方法；设置与文件句柄仍在本机 IndexedDB。保存带 `baseRev`，服务端版本不同返回 409，前端让用户选择加载云端版本或覆盖；401 时弹出重新登录，网络错误静默重试。写请求必须带 `X-Requested-With: chaos-collage`，并校验 Origin。
-9. `.chaos` 文件：JSON（`format: "chaos-collage-project"`、`version: 2`、`doc`、以 data URL 内嵌的 `assets` 与用到的导入字体 `fonts`）。打开时若库中已有同 ID 工程，可选择覆盖或作为副本打开。
+9. 智能抠图组件：不进仓库。本机版首次使用征得同意后从公共 CDN（jsDelivr → npmmirror → unpkg；模型 Hugging Face → hf-mirror）下载，逐个按大小 + SHA-256 校验，存入独立 IndexedDB 库 `chaos-collage-cutout`（不属于工程库，可在抠图窗口清除）。云端版的 CSP 只允许本站资源，所以服务器在启动后后台把同样的文件下载到 `<数据目录>/vendor/cutout/` 并在 `/vendor/cutout/` 提供（`CC_CUTOUT=0` 关闭，`admin cutout` 手动检查 / 下载）；`/api/config` 的 `cutout` 字段告诉前端走哪条路。云端 CSP 增加 `'wasm-unsafe-eval'`，响应带 COOP / COEP 以启用多线程。引擎空闲 3 分钟后释放。抠图原图（`layer.cutout.src`）计入「已用资源」，打开工程时不会被清理，另存 `.chaos` 时一并打包。
+10. `.chaos` 文件：JSON（`format: "chaos-collage-project"`、`version: 2`、`doc`、以 data URL 内嵌的 `assets` 与用到的导入字体 `fonts`）。打开时若库中已有同 ID 工程，可选择覆盖或作为副本打开。
 
 ## 关键约束
 
@@ -99,7 +105,8 @@ ChaosCollege/
 - 不引入包管理器、框架或构建；测试驱动只装在 /tmp。
 - 浏览器目标为 Chrome / Edge（canvas filter、letterSpacing、File System Access、Local Font Access）。其他浏览器缺失这些 API 时会退化（如另存改为下载）。
 - 本机版数据只在本机浏览器中，清除浏览器数据会删除工程库；重要工程应另存 `.chaos`。云端版数据在服务器卷 `chaos-collage-data`，备份方法见 DEPLOY.md。
-- 服务端只用 Python 标准库，不引入 pip 依赖；静态文件只放行 index.html / styles.css / app.js / manifest.webmanifest / js/ / assets/。
+- 服务端只用 Python 标准库，不引入 pip 依赖；静态文件只放行 index.html / styles.css / app.js / manifest.webmanifest / js/ / assets/，另有 `/vendor/cutout/`（只限清单中的文件）。
+- 智能抠图速度（本环境 4 核、无 GPU 实测）：WebAssembly 单线程（file://）约 9–12 秒 / 张，多线程（云端，跨源隔离）约 6–7 秒；有支持 f16 的显卡时走 WebGPU，会快很多（本环境无实体显卡，未实测）。模型输入 512×512，极细发丝不如 1024 级模型；1024 版 BiRefNet 在浏览器 WASM 下内存不足（std::bad_alloc），未采用。
 - 效果与生成器在主线程计算。大图（如 A4 300 DPI）加帧感染这类重效果，单次计算可达数百毫秒；导出受浏览器画布上限约束（单边 ≤ 32000、总像素约 2.2 亿以内）。
 - `docs/experiments/datamosh-*` 的旧基准脚本依赖已删除的 `samples.js`（含他人截图，公开前要从 Git 历史中清除），这些基准无法再重跑；结论保留在各自 README / JSON 中。
 

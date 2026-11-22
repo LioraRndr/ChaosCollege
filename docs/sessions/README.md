@@ -10,6 +10,7 @@ YYYY-MM-DD_HHmm-<short-slug>.md
 
 ## 最近记录（新到旧）
 
+- [`2026-11-17_1359-smart-cutout.md`](2026-11-17_1359-smart-cutout.md) — 智能抠图：选型实测（BiRefNet_lite 512 fp16，浏览器内 WebGPU / WASM 推理）、首次使用下载并校验组件、预览调边 / 羽化、裁边、恢复原图；云端版服务器镜像组件（CSP 不放宽外部来源）+ 跨源隔离多线程；t13 27/27、t14 8/8。
 - [`2026-10-01_2347-save-layer-pick-menu.md`](2026-10-01_2347-save-layer-pick-menu.md) — （续 2026-10-02）云端版：Python 标准库服务端 + 注册登录 + 云端自动保存 + Docker/Caddy 部署；新 Logo；中文 README、MIT、部署文档等 GitHub 公开准备（历史重写待用户本机执行）。此前：保存机制排查：先写工程再生成缩略图，关窗口不丢最后的改动；关联 .chaos 自动写入；主页显示工程库位置；画布点选优先已选图层 + 右键「选择图层」；修复子菜单扫过后全部高亮。
 - [`2026-10-01_1433-product-editor-upgrade.md`](2026-10-01_1433-product-editor-upgrade.md) — 产品化升级：工程库与 .chaos 文件、工程主页、新建预设、画布大小对话框、工具栏与变形、40 个效果与一键风格、生成器与贴纸、字体库、Y3K 调研与实现；删除配方与参考图；本地 Git 基线（未推送）。
 - [`2026-10-01_1352-git-private-github.md`](2026-10-01_1352-git-private-github.md) — 初始化 Git 版本管理，建立 LioraRndr/ChaosCollege 私有仓库并推送 main。

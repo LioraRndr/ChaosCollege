@@ -110,7 +110,8 @@
   }
 
   const TYPE_DEFAULTS = {
-    image: () => ({ assetId: '', fit: 'stretch', cropZoom: 1, cropX: 0, cropY: 0, smoothing: true }),
+    /* cutout: { src: original asset id, rect: kept area as fractions of it } after a smart cutout */
+    image: () => ({ assetId: '', fit: 'stretch', cropZoom: 1, cropX: 0, cropY: 0, smoothing: true, cutout: null }),
     text: () => ({
       text: 'TYPE',
       fontFamily: 'Arial Black',

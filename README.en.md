@@ -4,7 +4,7 @@
 
 # CHAOS.COLLAGE
 
-A browser editor for dense Y2K / Y3K / cyber-collage / Xerox-style static graphics. Use it locally with no install, build step or network, or deploy it to your own server as a cloud service with accounts and cloud autosave.
+A browser editor for dense Y2K / Y3K / cyber-collage / Xerox-style static graphics. Use it locally with no install, build step or network (only smart cutout downloads its model once), or deploy it to your own server as a cloud service with accounts and cloud autosave.
 
 ![Editor](docs/images/editor.jpg)
 
@@ -54,6 +54,7 @@ Caddy obtains HTTPS certificates automatically. Anyone can register (configurabl
 
 - 40 stackable effects in six groups (color, print / pixel, glitch, distort, light / material, stylize), including the approved **Datamosh Frame** stuck-frame look (pixel-identical to the 2026-09-30 algorithm on opaque images) and **Block glitch**.
 - 18 one-click looks (Y3K, glitch, print, light).
+- **Smart cutout**: one-click background removal for image layers (BiRefNet_lite, runs in the browser on WebGPU or WebAssembly; images are never uploaded), with edge contract / expand and feather, automatic trimming of transparent margins, and "restore original" at any time. The first use downloads ~121 MB of pinned, SHA-256-checked components (from public CDNs locally, from your own server in the cloud edition); after that it works offline.
 - 26 parametric generators (UI parts, codes, patterns, 3D wireframes, vaporwave terrain, type bands / badges, Y3K grain gradients, liquid metal, cybersigils, HUD) plus error windows, barcode, tape, confetti and 3D shatter.
 - 55 recolorable vector stickers (Y2K symbols, UI / computer, pixel art).
 - Export PNG / JPG / WEBP at 0.5×–4×, optional transparency, whole canvas or selected layers only.
