@@ -1013,6 +1013,10 @@
             <button type="button" class="mini-button" data-insp-action="image-ratio">${ui.icon('reset')}<span>恢复原比例</span></button>
             <button type="button" class="mini-button" data-insp-action="image-replace">${ui.icon('image')}<span>替换图片</span></button>
           </div>`,
+          `<div class="button-row">
+            <button type="button" class="mini-button" data-insp-action="image-cutout" title="自动识别主体并去掉背景（在本机运行）" ${asset ? '' : 'disabled'}>${ui.icon('cutout')}<span>智能抠图</span></button>
+            ${App.canRestoreCutout?.(layer) ? `<button type="button" class="mini-button" data-insp-action="image-uncutout">${ui.icon('reset')}<span>恢复原图</span></button>` : ''}
+          </div>`,
         ].join('');
       }
       case 'text':
@@ -1596,6 +1600,12 @@
       }
       case 'image-replace':
         App.chooseImages({ replace: layer.id });
+        break;
+      case 'image-cutout':
+        App.smartCutout(layer);
+        break;
+      case 'image-uncutout':
+        App.restoreCutout(layer);
         break;
       case 'gen-reroll':
         App.change('换随机图案', () => {

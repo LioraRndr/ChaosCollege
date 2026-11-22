@@ -25,6 +25,7 @@ import sqlite3
 import sys
 import threading
 import time
+import urllib.request
 from http import HTTPStatus
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -64,6 +65,8 @@ CONFIG = {
     "trust_proxy": env_bool("CC_TRUST_PROXY", False),
     # "auto": Secure cookie when the request arrived over https
     "secure_cookie": os.environ.get("CC_SECURE_COOKIE", "auto").lower(),
+    # smart cutout: mirror the in-browser AI runtime + model (about 130 MB) into the data directory
+    "cutout": env_bool("CC_CUTOUT", True),
 }
 
 SESSION_COOKIE = "cc_session"
@@ -76,7 +79,8 @@ WRITE_LOCK = threading.Lock()
 
 CSP = "; ".join([
     "default-src 'self'",
-    "script-src 'self'",
+    # wasm-unsafe-eval: the smart cutout runtime is WebAssembly (no JS eval is allowed by this)
+    "script-src 'self' 'wasm-unsafe-eval'",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
     "font-src 'self' data: blob:",
@@ -298,6 +302,172 @@ def ensure_quota(conn: sqlite3.Connection, user: sqlite3.Row, adding: int, repla
 # --------------------------------------------------------------------------
 # HTTP handler
 # --------------------------------------------------------------------------
+# smart cutout components
+# --------------------------------------------------------------------------
+# Background removal runs in the visitor's browser, but the CSP above only lets
+# the page load code and data from this server. The pinned runtime and model
+# listed in js/cutout-manifest.js are therefore mirrored once into
+# <data>/vendor/cutout (in the background at start-up, or with
+# `admin cutout`) and served from /vendor/cutout/.
+
+CUTOUT_PREFIX = "/vendor/cutout/"
+CUTOUT_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,120}$")
+CUTOUT_TYPES = {".js": "application/javascript; charset=utf-8", ".mjs": "application/javascript; charset=utf-8", ".wasm": "application/wasm"}
+
+
+def load_cutout_files() -> dict:
+    """name -> {size, sha256, urls} from the JSON block shared with the front end."""
+    try:
+        text = (APP_ROOT / "js" / "cutout-manifest.js").read_text(encoding="utf-8")
+        block = text.split("/*CUTOUT-MANIFEST-BEGIN*/", 1)[1].split("/*CUTOUT-MANIFEST-END*/", 1)[0]
+        files = {}
+        for entry in json.loads(block)["files"]:
+            name = entry["name"]
+            urls = [url for url in entry["urls"] if url.startswith("https://")]
+            if not CUTOUT_NAME_RE.match(name) or not urls or not re.fullmatch(r"[0-9a-f]{64}", entry["sha256"]):
+                raise ValueError(f"bad entry {name!r}")
+            files[name] = {"size": int(entry["size"]), "sha256": entry["sha256"], "urls": urls}
+        return files
+    except (OSError, IndexError, KeyError, TypeError, ValueError) as error:
+        sys.stderr.write(f"cutout manifest unreadable, smart cutout disabled: {error!r}\n")
+        return {}
+
+
+class CutoutMirror:
+    def __init__(self) -> None:
+        self.files = load_cutout_files()
+        self.lock = threading.Lock()
+        self.verified: set[str] = set()
+        self.thread: threading.Thread | None = None
+        self.error = ""
+        self.failed_at = 0.0
+        self.loaded = 0
+        self.total = 0
+
+    @property
+    def root(self) -> Path:
+        return CONFIG["data"] / "vendor" / "cutout"
+
+    def path(self, name: str) -> Path:
+        return self.root / name
+
+    def has(self, name: str) -> bool:
+        """True once the file is on disk and matches its pinned hash (checked once per run)."""
+        if name in self.verified:
+            return True
+        entry = self.files.get(name)
+        file = self.path(name)
+        try:
+            if not entry or file.stat().st_size != entry["size"]:
+                return False
+            digest = hashlib.sha256()
+            with file.open("rb") as handle:
+                for chunk in iter(lambda: handle.read(1 << 20), b""):
+                    digest.update(chunk)
+        except OSError:
+            return False
+        if digest.hexdigest() != entry["sha256"]:
+            return False
+        self.verified.add(name)
+        return True
+
+    def missing(self) -> list[str]:
+        return [name for name in self.files if not self.has(name)]
+
+    def fetch_one(self, name: str, report=None) -> None:
+        entry = self.files[name]
+        self.root.mkdir(parents=True, exist_ok=True)
+        # the server's background thread and `admin cutout` may run at once:
+        # each writer gets its own temporary file, the finished file is swapped in atomically
+        part = self.path(f"{name}.{os.getpid()}-{threading.get_ident()}.part")
+        failure: Exception | None = None
+        for url in entry["urls"]:
+            if self.has(name):  # finished by another process meanwhile
+                return
+            start = self.loaded
+            try:
+                request = urllib.request.Request(url, headers={"User-Agent": "chaos-collage-server"})
+                digest = hashlib.sha256()
+                size = 0
+                with urllib.request.urlopen(request, timeout=60) as response, part.open("wb") as out:
+                    while True:
+                        chunk = response.read(1 << 18)
+                        if not chunk:
+                            break
+                        size += len(chunk)
+                        if size > entry["size"]:
+                            raise ValueError("larger than expected")
+                        digest.update(chunk)
+                        out.write(chunk)
+                        self.loaded = start + size
+                        if report:
+                            report(name, size, entry["size"])
+                if size != entry["size"] or digest.hexdigest() != entry["sha256"]:
+                    raise ValueError("size or SHA-256 mismatch")
+                os.replace(part, self.path(name))
+                self.verified.add(name)
+                return
+            except Exception as error:  # try the next mirror
+                failure = error
+                self.loaded = start
+                part.unlink(missing_ok=True)
+                if self.has(name):
+                    return
+                sys.stderr.write(f"cutout: {url} failed: {error!r}\n")
+        raise RuntimeError(f"{name}: {failure}")
+
+    def clean_parts(self) -> None:
+        """Remove temporary files left behind by an interrupted download."""
+        cutoff = time.time() - 6 * 3600
+        for part in self.root.glob("*.part"):
+            try:
+                if part.stat().st_mtime < cutoff:
+                    part.unlink()
+            except OSError:
+                pass
+
+    def fetch_all(self, report=None) -> bool:
+        if self.root.is_dir():
+            self.clean_parts()
+        names = self.missing()
+        self.total = sum(self.files[name]["size"] for name in names)
+        self.loaded = 0
+        try:
+            for name in names:
+                self.fetch_one(name, report)
+            self.error = ""
+            return True
+        except Exception as error:
+            self.error = str(error)
+            self.failed_at = time.time()
+            sys.stderr.write(f"cutout: download failed: {error}\n")
+            return False
+
+    def start(self) -> None:
+        """Fetch what is missing in the background; a failed attempt is retried after a minute."""
+        with self.lock:
+            if self.thread and self.thread.is_alive():
+                return
+            if self.error and time.time() - self.failed_at < 60:
+                return
+            if not self.missing():
+                return
+            self.thread = threading.Thread(target=self.fetch_all, name="cutout-mirror", daemon=True)
+            self.thread.start()
+
+    def waiting_message(self) -> str:
+        if self.thread and self.thread.is_alive():
+            percent = int(self.loaded * 100 / self.total) if self.total else 0
+            return f"服务器正在准备抠图组件（{percent}%），请稍后再试"
+        if self.error:
+            return "服务器未能下载抠图组件，请联系管理员（运行 admin cutout 或查看服务日志）"
+        return "服务器正在准备抠图组件，请稍后再试"
+
+
+CUTOUT = CutoutMirror()
+
+
+# --------------------------------------------------------------------------
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -327,6 +497,9 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Referrer-Policy", "same-origin")
         self.send_header("X-Frame-Options", "DENY")
         self.send_header("Content-Security-Policy", CSP)
+        # cross-origin isolation: lets the smart cutout runtime use several CPU threads
+        self.send_header("Cross-Origin-Opener-Policy", "same-origin")
+        self.send_header("Cross-Origin-Embedder-Policy", "require-corp")
         if self.is_https():
             self.send_header("Strict-Transport-Security", "max-age=31536000")
 
@@ -467,6 +640,8 @@ class Handler(BaseHTTPRequestHandler):
                 if method not in {"GET", "HEAD"}:
                     self.check_write_origin()
                 self.route_api(method if method != "HEAD" else "GET", path[len("/api"):], parse_qs(url.query))
+            elif method in {"GET", "HEAD"} and path.startswith(CUTOUT_PREFIX):
+                self.serve_cutout(path[len(CUTOUT_PREFIX):])
             elif method in {"GET", "HEAD"}:
                 self.serve_static(path)
             else:
@@ -511,6 +686,30 @@ class Handler(BaseHTTPRequestHandler):
             ctype += "; charset=utf-8"
         self.send_bytes(200, file.read_bytes(), ctype, {"ETag": etag, "Cache-Control": "no-cache"})
 
+    def serve_cutout(self, name: str) -> None:
+        if not CONFIG["cutout"] or name not in CUTOUT.files:
+            raise ApiError(404, "not_found", "未找到")
+        if not CUTOUT.has(name):
+            CUTOUT.start()
+            raise ApiError(503, "cutout_preparing", CUTOUT.waiting_message())
+        file = CUTOUT.path(name)
+        etag = f'"{CUTOUT.files[name]["sha256"][:32]}"'
+        headers = {"ETag": etag, "Cache-Control": "public, max-age=31536000, immutable"}
+        self.send_response(304 if self.headers.get("If-None-Match") == etag else 200)
+        self.common_headers()
+        for key, value in headers.items():
+            self.send_header(key, value)
+        if self.headers.get("If-None-Match") == etag:
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+        self.send_header("Content-Type", CUTOUT_TYPES.get(file.suffix, "application/octet-stream"))
+        self.send_header("Content-Length", str(CUTOUT.files[name]["size"]))
+        self.end_headers()
+        if self.command != "HEAD":
+            with file.open("rb") as handle:
+                shutil.copyfileobj(handle, self.wfile, 1 << 18)
+
     # ---- API ----
 
     def route_api(self, method: str, path: str, query: dict) -> None:
@@ -524,6 +723,7 @@ class Handler(BaseHTTPRequestHandler):
                 "signup": CONFIG["allow_signup"],
                 "invite": bool(CONFIG["invite_code"]),
                 "maxUpload": CONFIG["max_upload"],
+                "cutout": bool(CONFIG["cutout"] and CUTOUT.files),
             })
         if seg[:1] == ["auth"]:
             return self.route_auth(method, seg[1:])
@@ -924,8 +1124,11 @@ def admin(argv: list[str]) -> int:
     p.add_argument("mb")
     p = sub.add_parser("delete", help="删除账号及其全部数据")
     p.add_argument("username")
+    sub.add_parser("cutout", help="检查并下载智能抠图组件（运行库与模型）")
     args = parser.parse_args(argv)
     init_storage()
+    if args.cmd == "cutout":
+        return admin_cutout()
 
     def find(conn, name):
         row = conn.execute("SELECT * FROM users WHERE username = ?", (name,)).fetchone()
@@ -978,6 +1181,38 @@ def admin(argv: list[str]) -> int:
         raise SystemExit(error.message) from None
 
 
+def admin_cutout() -> int:
+    if not CUTOUT.files:
+        raise SystemExit("读取不到 js/cutout-manifest.js")
+    last = [""]
+
+    tty = sys.stdout.isatty()
+
+    def report(name: str, size: int, total: int) -> None:
+        percent = size * 100 // total
+        line = f"  {name}  {percent}%"
+        if line == last[0] or (not tty and percent % 25):
+            return
+        last[0] = line
+        print("\r" + line if tty else line, end="" if tty else "\n", flush=True)
+
+    missing = CUTOUT.missing()
+    for name, entry in CUTOUT.files.items():
+        print(f"{'缺少' if name in missing else '已有'}  {name}  {entry['size'] / 1048576:.1f} MB")
+    if not missing:
+        print(f"组件齐全：{CUTOUT.root}")
+        return 0
+    print(f"下载到 {CUTOUT.root} …")
+    ok = CUTOUT.fetch_all(report)
+    print()
+    if not ok:
+        print(f"下载失败：{CUTOUT.error}")
+        print("也可以在能联网的电脑上按 js/cutout-manifest.js 里的地址下载，按其中的 name 改名后放进上面的目录。")
+        return 1
+    print("完成")
+    return 0
+
+
 def main(argv: list[str]) -> int:
     if argv[:1] == ["admin"]:
         return admin(argv[1:])
@@ -993,6 +1228,13 @@ def main(argv: list[str]) -> int:
     server = ThreadingHTTPServer((args.host, args.port), Handler)
     server.daemon_threads = True
     print(f"CHAOS.COLLAGE {VERSION} · http://{args.host}:{args.port} · 数据目录 {CONFIG['data']} · 注册{'开放' if CONFIG['allow_signup'] else '关闭'}", flush=True)
+    if CONFIG["cutout"] and CUTOUT.files:
+        need = sum(CUTOUT.files[name]["size"] for name in CUTOUT.missing())
+        if need:
+            print(f"智能抠图：后台下载组件（{need / 1048576:.0f} MB）到 {CUTOUT.root}", flush=True)
+            CUTOUT.start()
+        else:
+            print("智能抠图：组件已就绪", flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

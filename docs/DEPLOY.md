@@ -41,8 +41,21 @@ docker compose logs -f caddy    # 证书申请情况
 | `CC_USER_QUOTA_MB` | `500` | 每个账号的云端空间（工程 + 图片 + 缩略图 + 字体） |
 | `CC_MAX_UPLOAD_MB` | `40` | 单张图片 / 单个字体的上传上限 |
 | `CC_SESSION_DAYS` | `30` | 登录有效期（天），使用期间自动续期 |
+| `CC_CUTOUT` | `1` | 智能抠图：`1` 由服务器下载并提供抠图组件（约 121 MB，见下文）；`0` 关闭该功能 |
 
 修改后执行 `docker compose up -d` 生效。
+
+### 智能抠图组件
+
+智能抠图在**访问者自己的浏览器里**运行，图片不会上传到服务器做处理。但页面的内容安全策略只允许加载本站的文件，所以服务器会在启动后**在后台下载一次**抠图运行库（ONNX Runtime Web 1.31.1，MIT）和模型（BiRefNet_lite 512，MIT），共约 121 MB，存到数据卷的 `vendor/cutout/` 下，之后从本站提供给浏览器。每个文件都按 `js/cutout-manifest.js` 里固定的大小和 SHA-256 校验，不符就丢弃。下载完成前有人使用，会提示「服务器正在准备抠图组件」。
+
+```bash
+docker compose exec app python3 server/chaos_server.py admin cutout   # 查看状态；缺少时立即下载并显示进度
+```
+
+服务器不能访问外网（或访问 jsDelivr / npmmirror / unpkg / Hugging Face 都很慢）时：在能联网的电脑上按 `js/cutout-manifest.js` 中每个文件的地址下载，按其中的 `name` 改名，放进数据卷的 `vendor/cutout/` 目录（容器内路径 `/data/vendor/cutout/`，属主 `chaos`），再运行一次 `admin cutout` 确认「组件齐全」。不需要这个功能时设 `CC_CUTOUT=0`。
+
+浏览器第一次使用时还会从本站下载这些组件（约 121 MB）并保存在浏览器里，之后不再下载。
 
 ## 4. 账号管理
 
@@ -128,11 +141,13 @@ WantedBy=multi-user.target
 - 所有写操作要求自定义请求头并校验来源，防止跨站请求伪造。
 - 登录、注册、改密码按 IP 和账号限流；用户名不存在时也执行一次哈希计算，避免通过响应时间探测账号。
 - 只对外提供编辑器自身的静态文件；`docs/`、`server/`、`.git` 等目录一律 404。
-- 页面带严格的内容安全策略（只允许本站脚本）、`X-Frame-Options: DENY`、`nosniff`；用户上传的文件不会以网页或 SVG 的形式返回。
+- 页面带严格的内容安全策略（只允许本站脚本；`'wasm-unsafe-eval'` 只放行 WebAssembly 编译，供智能抠图使用，不允许 JS 的 eval）、`X-Frame-Options: DENY`、`nosniff`，并开启跨源隔离（COOP / COEP），让抠图可以多线程运行；用户上传的文件不会以网页或 SVG 的形式返回。
+- 智能抠图组件只从 `js/cutout-manifest.js` 列出的 HTTPS 地址下载，大小与 SHA-256 不符即丢弃；`/vendor/cutout/` 只提供清单里的文件名。
 - 每个账号有空间配额，单个上传有大小上限；注册可关闭、可要求邀请码、可限制总数。
 
 ## 常见问题
 
 - **打开域名没反应 / 证书申请失败**：检查 DNS 是否已指向服务器、80 / 443 是否放行（`docker compose logs caddy` 会写原因）。
 - **提示「云端空间已满」**：删除不用的工程，或用 `admin quota` 提高该账号配额。
+- **智能抠图一直提示「服务器正在准备抠图组件」或「未能下载」**：运行 `admin cutout` 查看缺哪个文件、下载失败的原因；离线服务器按上文手动放入文件。
 - **想迁移本机版的工程**：在本机版里用「文件 → 另存为工程文件」导出 `.chaos`，登录云端版后用「打开工程文件」导入。
